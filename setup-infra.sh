@@ -23,12 +23,12 @@ IMAGE_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${I
 COMPUTE_INSTANCE_NAME="nat-poc-vm"
 MAX_CONCURRENT_DEPLOYS=5
 
-NUM_VPCS=5
-NUM_SUBNETS_PER_VPC=5
-NUM_SERVICES_PER_SUBNET=10
+NUM_VPCS=2
+NUM_SUBNETS_PER_VPC=3
+NUM_SERVICES_PER_SUBNET=3
 
 # Class E base octets for non-routable subnets
-CLASS_E_BASES=(240 241 242 243 244)
+CLASS_E_BASES=(240 241 242)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -131,19 +131,20 @@ for v in $(seq 1 ${NUM_VPCS}); do
   fi
 done
 
-# Compute instance subnet in VPC-5
+# Compute instance subnet in last VPC
 COMPUTE_SUBNET_NAME="compute-subnet"
-COMPUTE_SUBNET_CIDR="10.5.0.0/28"
+COMPUTE_SUBNET_CIDR="10.${NUM_VPCS}.0.0/28"
+COMPUTE_VPC="vpc-${NUM_VPCS}"
 if resource_exists gcloud compute networks subnets describe "${COMPUTE_SUBNET_NAME}" \
     --region="${REGION}" --project="${PROJECT_ID}"; then
   echo "Subnet '${COMPUTE_SUBNET_NAME}' already exists, skipping."
 else
   gcloud compute networks subnets create "${COMPUTE_SUBNET_NAME}" \
-    --network="vpc-5" \
+    --network="${COMPUTE_VPC}" \
     --range="${COMPUTE_SUBNET_CIDR}" \
     --region="${REGION}" \
     --project="${PROJECT_ID}"
-  echo "Subnet '${COMPUTE_SUBNET_NAME}' (${COMPUTE_SUBNET_CIDR}) created in vpc-5."
+  echo "Subnet '${COMPUTE_SUBNET_NAME}' (${COMPUTE_SUBNET_CIDR}) created in ${COMPUTE_VPC}."
 fi
 
 # --- Step 5: Firewall rules ---
@@ -168,13 +169,13 @@ for v in $(seq 1 ${NUM_VPCS}); do
   fi
 done
 
-# Allow IAP SSH on VPC-5
-FW_IAP="allow-iap-ssh-vpc-5"
+# Allow IAP SSH on last VPC (where compute instance lives)
+FW_IAP="allow-iap-ssh-vpc-${NUM_VPCS}"
 if resource_exists gcloud compute firewall-rules describe "${FW_IAP}" --project="${PROJECT_ID}"; then
   echo "Firewall rule '${FW_IAP}' already exists, skipping."
 else
   gcloud compute firewall-rules create "${FW_IAP}" \
-    --network="vpc-5" \
+    --network="${COMPUTE_VPC}" \
     --allow=tcp:22 \
     --source-ranges="35.235.240.0/20" \
     --direction=INGRESS \
@@ -246,7 +247,7 @@ else
   gcloud compute instances create "${COMPUTE_INSTANCE_NAME}" \
     --zone="${ZONE}" \
     --machine-type=e2-micro \
-    --network-interface=network=vpc-5,subnet=compute-subnet,no-address \
+    --network-interface=network=${COMPUTE_VPC},subnet=compute-subnet,no-address \
     --project="${PROJECT_ID}"
   echo "Instance '${COMPUTE_INSTANCE_NAME}' created."
 fi
@@ -256,7 +257,7 @@ echo "=== Infrastructure setup complete ==="
 echo ""
 echo "Cloud Run services: $((NUM_VPCS * NUM_SUBNETS_PER_VPC * NUM_SERVICES_PER_SUBNET))"
 echo "VPC networks: ${NUM_VPCS}"
-echo "Compute instance: ${COMPUTE_INSTANCE_NAME} (vpc-5, ${COMPUTE_SUBNET_CIDR})"
+echo "Compute instance: ${COMPUTE_INSTANCE_NAME} (${COMPUTE_VPC}, ${COMPUTE_SUBNET_CIDR})"
 echo ""
 echo "SSH to compute instance:"
 echo "  gcloud compute ssh ${COMPUTE_INSTANCE_NAME} --zone=${ZONE} --tunnel-through-iap --project=${PROJECT_ID}"

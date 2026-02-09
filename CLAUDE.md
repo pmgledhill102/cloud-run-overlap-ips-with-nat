@@ -9,7 +9,7 @@ GCP proof-of-concept demonstrating how Cloud Run services can use overlapping IP
 ## Scripts
 
 - **`setup-iam.sh`** — Creates service account (`cloud-run-nat-poc`) and binds IAM roles. Run first with a privileged account (Owner/IAM Admin). Enables all required APIs.
-- **`setup-infra.sh`** — Creates all infrastructure: VPCs, subnets, firewall rules, Artifact Registry, container image, 250 Cloud Run services, compute instance. Run as the service account (via impersonation). Idempotent.
+- **`setup-infra.sh`** — Creates all infrastructure: VPCs, subnets, firewall rules, Artifact Registry, container image, 18 Cloud Run services, compute instance. Run as the service account (via impersonation). Idempotent. Scale by adjusting NUM_VPCS/NUM_SUBNETS_PER_VPC/NUM_SERVICES_PER_SUBNET at the top.
 - **`teardown.sh`** — Destroys all infrastructure and the service account. Idempotent.
 - **`load-test.sh`** — SSHs into the compute instance via IAP and sends requests to Cloud Run services. Usage: `./load-test.sh [vpc_number|all] [concurrency]`
 
@@ -17,15 +17,15 @@ All scripts read `PROJECT_ID` from `gcloud config get-value project`. Region is 
 
 ## Architecture
 
-- **5 VPC networks** (`vpc-1` through `vpc-5`), custom subnet mode
-- **25 Class E subnets** (5 per VPC): `240.0.0.0/8` through `244.0.0.0/8` — these overlap across all VPCs intentionally
-- **5 routable /28 subnets**: `10.0.0.0/28` through `10.4.0.0/28` — unique per VPC
-- **1 compute subnet** in VPC-5: `10.5.0.0/28`
-- **250 Cloud Run services** (10 per subnet × 5 subnets × 5 VPCs), named `cr-v{vpc}-s{subnet}-{nn}`
+- **2 VPC networks** (`vpc-1` through `vpc-2`), custom subnet mode (designed to scale to 5)
+- **6 Class E subnets** (3 per VPC): `240.0.0.0/8` through `242.0.0.0/8` — these overlap across all VPCs intentionally
+- **2 routable /28 subnets**: `10.0.0.0/28` and `10.1.0.0/28` — unique per VPC
+- **1 compute subnet** in VPC-2: `10.2.0.0/28`
+- **18 Cloud Run services** (3 per subnet × 3 subnets × 2 VPCs), named `cr-v{vpc}-s{subnet}-{nn}`
   - Go container (`container/`), sleeps 10s per request
   - Direct VPC egress into Class E subnets, private ingress only
   - maxInstances=20, minInstances=0, request-based billing
-- **1 Compute Instance** (`nat-poc-vm`) in VPC-5, private IP only, SSH via IAP
+- **1 Compute Instance** (`nat-poc-vm`) in VPC-2, private IP only, SSH via IAP
 
 ## IAM Roles (bound by setup-iam.sh)
 

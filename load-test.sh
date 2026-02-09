@@ -22,9 +22,9 @@ COMPUTE_INSTANCE_NAME="nat-poc-vm"
 VPC_FILTER="${1:-all}"   # e.g., "5" to test only VPC 5, or "all"
 CONCURRENT="${2:-5}"     # concurrent requests
 
-NUM_VPCS=5
-NUM_SUBNETS_PER_VPC=5
-NUM_SERVICES_PER_SUBNET=10
+NUM_VPCS=2
+NUM_SUBNETS_PER_VPC=3
+NUM_SERVICES_PER_SUBNET=3
 
 echo "=== Load Test ==="
 echo "Project: ${PROJECT_ID}"

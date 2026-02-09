@@ -20,11 +20,11 @@ SA_NAME="cloud-run-nat-poc"
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 MAX_CONCURRENT_DELETES=5
 
-NUM_VPCS=5
-NUM_SUBNETS_PER_VPC=5
-NUM_SERVICES_PER_SUBNET=10
+NUM_VPCS=2
+NUM_SUBNETS_PER_VPC=3
+NUM_SERVICES_PER_SUBNET=3
 
-CLASS_E_BASES=(240 241 242 243 244)
+CLASS_E_BASES=(240 241 242)
 
 echo "=== Teardown Infrastructure for project: ${PROJECT_ID} ==="
 echo ""
@@ -93,7 +93,7 @@ for v in $(seq 1 ${NUM_VPCS}); do
   fi
 done
 
-FW_IAP="allow-iap-ssh-vpc-5"
+FW_IAP="allow-iap-ssh-vpc-${NUM_VPCS}"
 if resource_exists gcloud compute firewall-rules describe "${FW_IAP}" --project="${PROJECT_ID}"; then
   gcloud compute firewall-rules delete "${FW_IAP}" --project="${PROJECT_ID}" --quiet
   echo "Firewall rule '${FW_IAP}' deleted."
