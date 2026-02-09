@@ -131,10 +131,10 @@ for v in $(seq 1 ${NUM_VPCS}); do
   fi
 done
 
-# Compute instance subnet in last VPC
+# Compute instance subnet in VPC-1
 COMPUTE_SUBNET_NAME="compute-subnet"
 COMPUTE_SUBNET_CIDR="10.${NUM_VPCS}.0.0/28"
-COMPUTE_VPC="vpc-${NUM_VPCS}"
+COMPUTE_VPC="vpc-1"
 if resource_exists gcloud compute networks subnets describe "${COMPUTE_SUBNET_NAME}" \
     --region="${REGION}" --project="${PROJECT_ID}"; then
   echo "Subnet '${COMPUTE_SUBNET_NAME}' already exists, skipping."
@@ -169,8 +169,8 @@ for v in $(seq 1 ${NUM_VPCS}); do
   fi
 done
 
-# Allow IAP SSH on last VPC (where compute instance lives)
-FW_IAP="allow-iap-ssh-vpc-${NUM_VPCS}"
+# Allow IAP SSH on VPC-1 (where compute instance lives)
+FW_IAP="allow-iap-ssh-vpc-1"
 if resource_exists gcloud compute firewall-rules describe "${FW_IAP}" --project="${PROJECT_ID}"; then
   echo "Firewall rule '${FW_IAP}' already exists, skipping."
 else

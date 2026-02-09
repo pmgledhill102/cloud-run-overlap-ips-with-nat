@@ -93,7 +93,7 @@ for v in $(seq 1 ${NUM_VPCS}); do
   fi
 done
 
-FW_IAP="allow-iap-ssh-vpc-${NUM_VPCS}"
+FW_IAP="allow-iap-ssh-vpc-1"
 if resource_exists gcloud compute firewall-rules describe "${FW_IAP}" --project="${PROJECT_ID}"; then
   gcloud compute firewall-rules delete "${FW_IAP}" --project="${PROJECT_ID}" --quiet
   echo "Firewall rule '${FW_IAP}' deleted."

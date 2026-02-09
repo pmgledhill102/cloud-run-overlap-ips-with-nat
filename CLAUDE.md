@@ -20,12 +20,12 @@ All scripts read `PROJECT_ID` from `gcloud config get-value project`. Region is 
 - **2 VPC networks** (`vpc-1` through `vpc-2`), custom subnet mode (designed to scale to 5)
 - **6 Class E subnets** (3 per VPC): `240.0.0.0/8` through `242.0.0.0/8` — these overlap across all VPCs intentionally
 - **2 routable /28 subnets**: `10.0.0.0/28` and `10.1.0.0/28` — unique per VPC
-- **1 compute subnet** in VPC-2: `10.2.0.0/28`
+- **1 compute subnet** in VPC-1: `10.2.0.0/28`
 - **18 Cloud Run services** (3 per subnet × 3 subnets × 2 VPCs), named `cr-v{vpc}-s{subnet}-{nn}`
   - Go container (`container/`), sleeps 10s per request
   - Direct VPC egress into Class E subnets, private ingress only
   - maxInstances=20, minInstances=0, request-based billing
-- **1 Compute Instance** (`nat-poc-vm`) in VPC-2, private IP only, SSH via IAP
+- **1 Compute Instance** (`nat-poc-vm`) in VPC-1, private IP only, SSH via IAP
 
 ## IAM Roles (bound by setup-iam.sh)
 
