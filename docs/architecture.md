@@ -63,6 +63,50 @@ The hub VM sends traffic to the spoke's Internal Load Balancer (on a routable /2
 
 Only non-overlapping routes are exchanged. The overlapping `240.0.0.0/8` subnets are **never advertised** — they exist only within each spoke for Cloud Run egress.
 
+## NAT Configuration
+
+### Hybrid NAT (per spoke)
+
+Each spoke has a dedicated Cloud Router (`nat-router-spoke-{n}`) with a Private NAT gateway (`hybrid-nat-spoke-{n}`). A NAT rule matches `nexthop.is_hybrid` (traffic destined for routes learned via VPN) and SNATs to the spoke's `pnat-spoke-{n}` subnet (`172.16.{n}.0/24`).
+
+This translates the overlapping `240.x.x.x` source IPs into unique routable IPs before the traffic crosses the VPN tunnel.
+
+### Public NAT (hub)
+
+The hub has a Public NAT gateway (`public-nat-hub`) on a dedicated Cloud Router (`nat-router-hub`) giving the VM internet access despite having no external IP.
+
+## ILB Configuration (per spoke)
+
+Each spoke exposes its Cloud Run service via an Internal Load Balancer:
+
+1. **Serverless NEG** (`neg-spoke-{n}`) → points at `cr-spoke-{n}`
+2. **Backend service** (`bs-spoke-{n}`) → regional, INTERNAL_MANAGED, HTTP
+3. **URL map** (`urlmap-spoke-{n}`) → default backend
+4. **Target HTTP proxy** (`proxy-spoke-{n}`)
+5. **Forwarding rule** (`ilb-spoke-{n}`) → on `routable-spoke-{n}` subnet, port 80
+
+The ILB's IP is on the routable `/28` subnet, which is advertised via BGP to the hub. The proxy-only subnet provides Envoy proxy capacity.
+
+## Compute & Cloud Run
+
+| Resource | VPC / Subnet | Purpose |
+|---|---|---|
+| `vm-hub` (e2-micro) | hub / compute-hub | Webserver (python3 http.server on port 80) + test client |
+| `cr-spoke-1` | spoke-1 / overlap-spoke-1 | Cloud Run service (Go HTTP server, private ingress) |
+| `cr-spoke-2` | spoke-2 / overlap-spoke-2 | Cloud Run service (Go HTTP server, private ingress) |
+| `job-spoke-1` | spoke-1 / overlap-spoke-1 | Cloud Run Job — test client, calls VM via NAT |
+| `job-spoke-2` | spoke-2 / overlap-spoke-2 | Cloud Run Job — test client, calls VM via NAT |
+
+## Firewall Rules
+
+| Rule | VPC | Source | Allow |
+|---|---|---|---|
+| `allow-iap-ssh-hub` | hub | `35.235.240.0/20` | tcp:22 |
+| `allow-nat-ingress-hub` | hub | `172.16.0.0/16` | tcp,udp,icmp |
+| `allow-internal-hub` | hub | `10.0.0.0/8` | tcp,udp,icmp |
+| `allow-internal-spoke-1` | spoke-1 | `10.0.0.0/8,172.16.0.0/16` | tcp,udp,icmp |
+| `allow-internal-spoke-2` | spoke-2 | `10.0.0.0/8,172.16.0.0/16` | tcp,udp,icmp |
+
 ## Cost Estimate
 
 | Resource | Qty | Monthly Cost |
