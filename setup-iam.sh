@@ -7,11 +7,7 @@
 #
 set -euo pipefail
 
-PROJECT_ID="$(gcloud config get-value project 2>/dev/null)"
-if [[ -z "$PROJECT_ID" ]]; then
-  echo "ERROR: No project set. Run: gcloud config set project <PROJECT_ID>"
-  exit 1
-fi
+PROJECT_ID="${PROJECT_ID:-sb-paul-g-workshop}"
 
 SA_NAME="cloud-run-nat-poc"
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
