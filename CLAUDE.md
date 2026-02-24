@@ -4,32 +4,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-GCP proof-of-concept demonstrating how Cloud Run services can use overlapping IP ranges across different VPCs, with the goal of having a single compute instance communicate with all of them. The base infrastructure is scripted; cross-VPC connectivity (Private NAT, NCC, PSC, VPC peering) is configured manually for experimentation.
+GCP proof-of-concept demonstrating how Cloud Run services can use overlapping IP ranges (Class E `240.0.0.0/8`) across different VPCs, with a hub-spoke architecture that enables bidirectional communication via HA VPN, Hybrid NAT, and Internal Load Balancers.
 
 ## Scripts
 
 - **`setup-iam.sh`** — Creates service account (`cloud-run-nat-poc`) and binds IAM roles. Run first with a privileged account (Owner/IAM Admin). Enables all required APIs.
-- **`setup-infra.sh`** — Creates all infrastructure: VPCs, subnets, firewall rules, Artifact Registry, container image, 18 Cloud Run services, compute instance. Run as the service account (via impersonation). Idempotent. Scale by adjusting NUM_VPCS/NUM_SUBNETS_PER_VPC/NUM_SERVICES_PER_SUBNET at the top.
-- **`teardown.sh`** — Destroys all infrastructure and the service account. Idempotent.
-- **`load-test.sh`** — SSHs into the compute instance via IAP and sends requests to Cloud Run services. Usage: `./load-test.sh [vpc_number|all] [concurrency]`
+- **`setup-infra.sh`** — Creates base infrastructure: hub + spoke VPCs, subnets, firewall rules, Artifact Registry, container images, VM, Cloud Run services/jobs. Idempotent. Run as the service account.
+- **`setup-connectivity.sh`** — Creates HA VPN tunnels, BGP sessions, Hybrid NAT, Public NAT, and ILB with serverless NEG. Run after setup-infra.sh. Wait ~60s for BGP convergence.
+- **`teardown.sh`** — Destroys all infrastructure including connectivity resources and the service account. Idempotent.
+- **`test.sh`** — Tests both traffic flows: triggers Cloud Run Jobs (spoke→hub via NAT) and curls ILBs from VM (hub→spoke).
 
-All scripts read `PROJECT_ID` from `gcloud config get-value project`. Region is `europe-north2`.
+All scripts default `PROJECT_ID` to `sb-paul-g-workshop`. Region is `europe-north2`.
 
 ## Architecture
 
-- **2 VPC networks** (`vpc-1` through `vpc-2`), custom subnet mode (designed to scale to 5)
-- **6 Class E subnets** (3 per VPC): `240.0.0.0/8` through `242.0.0.0/8` — these overlap across all VPCs intentionally
-- **2 routable /28 subnets**: `10.0.0.0/28` and `10.1.0.0/28` — unique per VPC
-- **1 compute subnet** in VPC-1: `10.2.0.0/28`
-- **18 Cloud Run services** (3 per subnet × 3 subnets × 2 VPCs), named `cr-v{vpc}-s{subnet}-{nn}`
-  - Go container (`container/`), sleeps 10s per request
-  - Direct VPC egress into Class E subnets, private ingress only
-  - maxInstances=20, minInstances=0, request-based billing
-- **1 Compute Instance** (`nat-poc-vm`) in VPC-1, private IP only, SSH via IAP
+See `docs/architecture.md` for full details.
+
+- **3 VPCs**: `hub`, `spoke-1`, `spoke-2` (custom subnet mode)
+- **Hub**: Compute VM (`vm-hub`) on `10.0.0.0/28`, Public NAT for internet
+- **Spokes**: Each has overlapping `240.0.0.0/8` (Cloud Run egress), routable `/28` (ILB), proxy-only `/26`, and PRIVATE_NAT `/24`
+- **HA VPN**: 8 tunnels total (4 per spoke), BGP route exchange (non-overlapping only)
+- **Hybrid NAT**: On each spoke, SNATs `240.x` → `172.16.x` for spoke→hub traffic
+- **ILB**: Serverless NEG on each spoke for hub→spoke traffic
+- **Cloud Run**: 2 services (`cr-spoke-1`, `cr-spoke-2`) + 2 jobs (`job-spoke-1`, `job-spoke-2`)
 
 ## IAM Roles (bound by setup-iam.sh)
 
-`roles/compute.networkAdmin`, `roles/compute.instanceAdmin.v1`, `roles/run.admin`, `roles/vpcaccess.admin`, `roles/iam.serviceAccountUser`, `roles/iap.tunnelResourceAccessor`, `roles/artifactregistry.admin`, `roles/networkconnectivity.hubAdmin`
+`roles/compute.networkAdmin`, `roles/compute.instanceAdmin.v1`, `roles/run.admin`, `roles/run.invoker`, `roles/vpcaccess.admin`, `roles/iam.serviceAccountUser`, `roles/iap.tunnelResourceAccessor`, `roles/artifactregistry.admin`, `roles/networkconnectivity.hubAdmin`
 
 Cloud Run Service Agent also gets `roles/compute.networkUser` for Direct VPC egress.
 

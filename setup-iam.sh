@@ -49,6 +49,7 @@ ROLES=(
   roles/compute.networkAdmin
   roles/compute.instanceAdmin.v1
   roles/run.admin
+  roles/run.invoker
   roles/vpcaccess.admin
   roles/iam.serviceAccountUser
   roles/iap.tunnelResourceAccessor

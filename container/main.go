@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"time"
 )
 
 func main() {
@@ -16,9 +15,9 @@ func main() {
 	hostname, _ := os.Hostname()
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(10 * time.Second)
 		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintf(w, "OK\nHostname: %s\nService: %s\n", hostname, os.Getenv("K_SERVICE"))
+		fmt.Fprintf(w, "OK\nHostname: %s\nService: %s\nRequester: %s\n",
+			hostname, os.Getenv("K_SERVICE"), r.RemoteAddr)
 	})
 
 	fmt.Printf("Listening on port %s\n", port)
