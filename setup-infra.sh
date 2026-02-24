@@ -308,7 +308,7 @@ for spoke_num in 1 2; do
       --max-instances=5 \
       --min-instances=0 \
       --cpu-throttling \
-      --no-allow-unauthenticated \
+      --allow-unauthenticated \
       --project="${PROJECT_ID}" \
       --quiet
     echo "Service '${service}' deployed."
