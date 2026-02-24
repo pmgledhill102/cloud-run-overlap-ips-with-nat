@@ -4,21 +4,23 @@
 
 This PoC demonstrates how Cloud Run services deployed on **overlapping IP ranges** (Class E `240.0.0.0/8`) across separate VPCs can communicate with a central hub VM — and vice versa — using HA VPN, Hybrid NAT, and Internal Load Balancers.
 
+## Key Findings
+
+**Can we use overlapping non-routable IP addresses in a Google Cloud network?**
+
+Yes. GCP allows Class E addresses (`240.0.0.0/4`) as VPC subnet ranges. Multiple VPCs can use the same Class E CIDR (e.g. `240.0.0.0/8`) without conflict, since each VPC is an isolated network. Cloud Run services deployed with Direct VPC egress into these subnets function normally. Cross-VPC communication is possible via Hybrid NAT (which translates the overlapping source IPs to unique routable IPs) combined with HA VPN tunnels.
+
+**Can we use non-routable IP addresses for the proxy-only subnet?**
+
+Yes. GCP accepts Class E ranges for `REGIONAL_MANAGED_PROXY` purpose subnets (e.g. `241.0.0.0/26`). The Envoy proxies provisioned by the Internal Load Balancer operate entirely within the VPC — their IPs never appear in cross-VPC traffic. This means the proxy-only subnet can use the same overlapping range in every spoke, doesn't need to be advertised via BGP, and consumes zero routable address space.
+
 ## Topology
 
-```
-                     HA VPN (4 tunnels)              HA VPN (4 tunnels)
-  +-----------+  <========================>  +-----+  <========================>  +-----------+
-  |  spoke-1  |                              | hub |                              |  spoke-2  |
-  +-----------+                              +-----+                              +-----------+
-  CR service          Hybrid NAT             VM (webserver                        CR service
-  CR job (test)       (spoke→hub)            + test client)     Hybrid NAT        CR job (test)
-  240.0.0.0/8                                10.0.0.0/28       (spoke→hub)        240.0.0.0/8
-  ILB on 10.1.0.0/28                         Public NAT                           ILB on 10.2.0.0/28
-                                             (internet access)
-```
+![Hub-Spoke Architecture](diagrams/architecture.drawio.svg)
 
 ## Traffic Flows
+
+![Traffic Flows](diagrams/traffic-flows.drawio.svg)
 
 ### Flow A — Spoke → Hub (Hybrid NAT)
 
