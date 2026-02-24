@@ -230,7 +230,8 @@ gcloud compute routers update "${VPN_ROUTER_1}" \
   --region="${REGION}" \
   --advertisement-mode=CUSTOM \
   --set-advertisement-ranges="10.2.0.0/28,10.0.0.0/28" \
-  --project="${PROJECT_ID}"
+  --project="${PROJECT_ID}" \
+  --quiet
 echo "${VPN_ROUTER_1} route advertisements configured."
 
 # VPC-2: advertise routable subnet and PRIVATE_NAT subnet (for return traffic)
@@ -239,7 +240,8 @@ gcloud compute routers update "${VPN_ROUTER_2}" \
   --region="${REGION}" \
   --advertisement-mode=CUSTOM \
   --set-advertisement-ranges="10.1.0.0/28,${PNAT_SUBNET_CIDR}" \
-  --project="${PROJECT_ID}"
+  --project="${PROJECT_ID}" \
+  --quiet
 echo "${VPN_ROUTER_2} route advertisements configured."
 
 # --- Step 7: Create dedicated Cloud Router for Hybrid NAT in VPC-2 ---
@@ -263,12 +265,12 @@ if gcloud compute routers nats describe "${NAT_GW}" \
     --router="${NAT_ROUTER}" --region="${REGION}" --project="${PROJECT_ID}" &>/dev/null; then
   echo "NAT gateway '${NAT_GW}' already exists, skipping."
 else
-  # NAT traffic from the Class E subnets (where Cloud Run has Direct VPC egress)
+  # NAT traffic from all subnets in VPC-2 (Private NAT requires --nat-all-subnet-ip-ranges)
   gcloud compute routers nats create "${NAT_GW}" \
     --router="${NAT_ROUTER}" \
     --type=PRIVATE \
     --region="${REGION}" \
-    --nat-custom-subnet-ip-ranges=class-e-240-vpc-2:ALL,class-e-241-vpc-2:ALL,class-e-242-vpc-2:ALL \
+    --nat-all-subnet-ip-ranges \
     --endpoint-types=ENDPOINT_TYPE_VM \
     --project="${PROJECT_ID}"
   echo "NAT gateway '${NAT_GW}' created."
@@ -317,7 +319,7 @@ echo ""
 
 echo "--- VPN tunnel status ---"
 gcloud compute vpn-tunnels list \
-  --region="${REGION}" --project="${PROJECT_ID}" \
+  --filter="region:${REGION}" --project="${PROJECT_ID}" \
   --format="table(name,status,peerIp)"
 
 echo ""
