@@ -1,6 +1,12 @@
 # Cloud Run Overlapping IPs with Hub-Spoke NAT
 
-GCP proof-of-concept demonstrating how Cloud Run services can use **overlapping IP ranges** (Class E `240.0.0.0/8`) across separate VPCs, with bidirectional communication through a central hub using HA VPN, Hybrid NAT, and Internal Load Balancers.
+## What This Tests
+
+Google Cloud allows non-routable IP ranges (Class E: `240.0.0.0/4`) to be used in VPC subnets. This PoC answers two questions:
+
+1. **Can Cloud Run services use overlapping non-routable IPs across separate VPCs, and still communicate with a central hub?** Yes — using Hybrid NAT to translate the overlapping source IPs into unique routable IPs before they cross HA VPN tunnels, and Internal Load Balancers (with serverless NEGs) for traffic in the reverse direction.
+
+2. **Can the ILB proxy-only subnet also use non-routable Class E addresses?** Yes — GCP accepts Class E ranges (e.g. `241.0.0.0/26`) for `REGIONAL_MANAGED_PROXY` subnets. Since these IPs are internal to the ILB's Envoy proxies and never leave the VPC, they can overlap across spokes and don't need to be advertised via BGP.
 
 ## Architecture
 
