@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 #
-# setup-infra.sh — Create all infrastructure resources (idempotent)
+# setup-infra.sh — Create base infrastructure (idempotent)
 #
-# Run this as the service account created by setup-iam.sh, or impersonate it:
+# Creates hub + spoke VPCs, subnets, firewall rules, Artifact Registry,
+# container images, VM, and Cloud Run services/jobs.
+#
+# Run this as the service account created by setup-iam.sh:
 #   gcloud config set auth/impersonate_service_account cloud-run-nat-poc@PROJECT.iam.gserviceaccount.com
+#
+# After this, run setup-connectivity.sh for VPN/NAT/ILB.
 #
 set -euo pipefail
 
@@ -13,22 +18,11 @@ PROJECT_ID="${PROJECT_ID:-sb-paul-g-workshop}"
 REGION="europe-north2"
 ZONE="${REGION}-a"
 REPO_NAME="cloud-run-nat-poc"
-IMAGE_NAME="sleep-server"
+SERVICE_IMAGE_NAME="http-server"
+JOB_IMAGE_NAME="http-client"
 IMAGE_TAG="latest"
-IMAGE_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_TAG}"
-PROXY_IMAGE_NAME="proxy-server"
-PROXY_IMAGE_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${PROXY_IMAGE_NAME}:${IMAGE_TAG}"
-PROXY_SERVICE_NAME="cr-proxy-v2"
-COMPUTE_INSTANCE_NAME="nat-poc-vm"
-WEBSERVER_INSTANCE_NAME="nat-poc-webserver"
-MAX_CONCURRENT_DEPLOYS=5
-
-NUM_VPCS=2
-NUM_SUBNETS_PER_VPC=3
-NUM_SERVICES_PER_SUBNET=3
-
-# Class E base octets for non-routable subnets
-CLASS_E_BASES=(240 241 242)
+SERVICE_IMAGE_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${SERVICE_IMAGE_NAME}:${IMAGE_TAG}"
+JOB_IMAGE_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${JOB_IMAGE_NAME}:${IMAGE_TAG}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -36,13 +30,15 @@ echo "=== Setup Infrastructure for project: ${PROJECT_ID} ==="
 echo "Region: ${REGION}"
 echo ""
 
-# --- Helper functions ---
+# --- Helper ---
 resource_exists() {
   "$@" &>/dev/null
   return $?
 }
 
-# --- Step 1: Artifact Registry ---
+# ============================================================
+# Step 1: Artifact Registry
+# ============================================================
 echo "--- Step 1: Artifact Registry ---"
 if resource_exists gcloud artifacts repositories describe "${REPO_NAME}" \
     --location="${REGION}" --project="${PROJECT_ID}"; then
@@ -56,278 +52,320 @@ else
   echo "Repository '${REPO_NAME}' created."
 fi
 
-# --- Step 2: Build and push container image ---
+# ============================================================
+# Step 2: Build and push container images
+# ============================================================
 echo ""
-echo "--- Step 2: Build and push container image ---"
-# Check if image already exists
-if gcloud artifacts docker images describe "${IMAGE_URL}" --project="${PROJECT_ID}" &>/dev/null; then
-  echo "Image '${IMAGE_URL}' already exists, skipping build."
-else
-  echo "Building container image..."
-  gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet 2>/dev/null || true
+echo "--- Step 2: Build and push container images ---"
+gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet 2>/dev/null || true
 
-  docker build --platform linux/amd64 -t "${IMAGE_URL}" "${SCRIPT_DIR}/container"
-  docker push "${IMAGE_URL}"
-  echo "Image pushed to ${IMAGE_URL}"
+# Service image (http-server)
+if gcloud artifacts docker images describe "${SERVICE_IMAGE_URL}" --project="${PROJECT_ID}" &>/dev/null; then
+  echo "Image '${SERVICE_IMAGE_URL}' already exists, skipping build."
+else
+  echo "Building service image..."
+  docker build --platform linux/amd64 -t "${SERVICE_IMAGE_URL}" "${SCRIPT_DIR}/container"
+  docker push "${SERVICE_IMAGE_URL}"
+  echo "Image pushed to ${SERVICE_IMAGE_URL}"
 fi
 
-# Build proxy image
-if gcloud artifacts docker images describe "${PROXY_IMAGE_URL}" --project="${PROJECT_ID}" &>/dev/null; then
-  echo "Image '${PROXY_IMAGE_URL}' already exists, skipping build."
+# Job image (http-client)
+if gcloud artifacts docker images describe "${JOB_IMAGE_URL}" --project="${PROJECT_ID}" &>/dev/null; then
+  echo "Image '${JOB_IMAGE_URL}' already exists, skipping build."
 else
-  echo "Building proxy container image..."
-  gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet 2>/dev/null || true
-
-  docker build --platform linux/amd64 -t "${PROXY_IMAGE_URL}" "${SCRIPT_DIR}/container-proxy"
-  docker push "${PROXY_IMAGE_URL}"
-  echo "Image pushed to ${PROXY_IMAGE_URL}"
+  echo "Building job image..."
+  docker build --platform linux/amd64 -t "${JOB_IMAGE_URL}" "${SCRIPT_DIR}/container-job"
+  docker push "${JOB_IMAGE_URL}"
+  echo "Image pushed to ${JOB_IMAGE_URL}"
 fi
 
-# --- Step 3: Create VPC networks ---
+# ============================================================
+# Step 3: Create VPC networks
+# ============================================================
 echo ""
 echo "--- Step 3: Create VPC networks ---"
-for v in $(seq 1 ${NUM_VPCS}); do
-  vpc_name="vpc-${v}"
-  if resource_exists gcloud compute networks describe "${vpc_name}" --project="${PROJECT_ID}"; then
-    echo "VPC '${vpc_name}' already exists, skipping."
+for vpc in hub spoke-1 spoke-2; do
+  if resource_exists gcloud compute networks describe "${vpc}" --project="${PROJECT_ID}"; then
+    echo "VPC '${vpc}' already exists, skipping."
   else
-    gcloud compute networks create "${vpc_name}" \
+    gcloud compute networks create "${vpc}" \
       --subnet-mode=custom \
       --project="${PROJECT_ID}"
-    echo "VPC '${vpc_name}' created."
+    echo "VPC '${vpc}' created."
   fi
 done
 
-# --- Step 4: Create subnets ---
+# ============================================================
+# Step 4: Create subnets
+# ============================================================
 echo ""
 echo "--- Step 4: Create subnets ---"
 
-# Class E subnets (non-routable, overlapping across all VPCs)
-for v in $(seq 1 ${NUM_VPCS}); do
-  vpc_name="vpc-${v}"
-  for s in $(seq 0 $((NUM_SUBNETS_PER_VPC - 1))); do
-    base="${CLASS_E_BASES[$s]}"
-    subnet_name="class-e-${base}-vpc-${v}"
-    cidr="${base}.0.0.0/8"
+# Hub: compute subnet (VM lives here)
+if resource_exists gcloud compute networks subnets describe "compute-hub" \
+    --region="${REGION}" --project="${PROJECT_ID}"; then
+  echo "Subnet 'compute-hub' already exists, skipping."
+else
+  gcloud compute networks subnets create "compute-hub" \
+    --network=hub \
+    --range="10.0.0.0/28" \
+    --region="${REGION}" \
+    --enable-private-ip-google-access \
+    --project="${PROJECT_ID}"
+  echo "Subnet 'compute-hub' (10.0.0.0/28) created in hub."
+fi
+# Ensure Private Google Access (idempotent)
+gcloud compute networks subnets update "compute-hub" \
+  --region="${REGION}" --enable-private-ip-google-access \
+  --project="${PROJECT_ID}" --quiet
 
-    if resource_exists gcloud compute networks subnets describe "${subnet_name}" \
-        --region="${REGION}" --project="${PROJECT_ID}"; then
-      echo "Subnet '${subnet_name}' already exists, skipping."
-    else
-      gcloud compute networks subnets create "${subnet_name}" \
-        --network="${vpc_name}" \
-        --range="${cidr}" \
-        --region="${REGION}" \
-        --project="${PROJECT_ID}"
-      echo "Subnet '${subnet_name}' (${cidr}) created in ${vpc_name}."
-    fi
-  done
-done
+# Spoke subnets
+for spoke_num in 1 2; do
+  spoke="spoke-${spoke_num}"
 
-# Routable subnets (unique per VPC)
-for v in $(seq 1 ${NUM_VPCS}); do
-  vpc_name="vpc-${v}"
-  subnet_name="routable-${v}"
-  cidr="10.$((v - 1)).0.0/28"
-
-  if resource_exists gcloud compute networks subnets describe "${subnet_name}" \
+  # Overlapping Class E subnet (Cloud Run egress)
+  subnet="overlap-${spoke}"
+  if resource_exists gcloud compute networks subnets describe "${subnet}" \
       --region="${REGION}" --project="${PROJECT_ID}"; then
-    echo "Subnet '${subnet_name}' already exists, skipping."
+    echo "Subnet '${subnet}' already exists, skipping."
   else
-    gcloud compute networks subnets create "${subnet_name}" \
-      --network="${vpc_name}" \
+    gcloud compute networks subnets create "${subnet}" \
+      --network="${spoke}" \
+      --range="240.0.0.0/8" \
+      --region="${REGION}" \
+      --project="${PROJECT_ID}"
+    echo "Subnet '${subnet}' (240.0.0.0/8) created in ${spoke}."
+  fi
+
+  # Routable /28 (ILB forwarding rule)
+  subnet="routable-${spoke}"
+  cidr="10.${spoke_num}.0.0/28"
+  if resource_exists gcloud compute networks subnets describe "${subnet}" \
+      --region="${REGION}" --project="${PROJECT_ID}"; then
+    echo "Subnet '${subnet}' already exists, skipping."
+  else
+    gcloud compute networks subnets create "${subnet}" \
+      --network="${spoke}" \
       --range="${cidr}" \
       --region="${REGION}" \
       --project="${PROJECT_ID}"
-    echo "Subnet '${subnet_name}' (${cidr}) created in ${vpc_name}."
+    echo "Subnet '${subnet}' (${cidr}) created in ${spoke}."
+  fi
+
+  # Proxy-only subnet (ILB)
+  subnet="proxy-${spoke}"
+  cidr="10.${spoke_num}.1.0/26"
+  if resource_exists gcloud compute networks subnets describe "${subnet}" \
+      --region="${REGION}" --project="${PROJECT_ID}"; then
+    echo "Subnet '${subnet}' already exists, skipping."
+  else
+    gcloud compute networks subnets create "${subnet}" \
+      --network="${spoke}" \
+      --range="${cidr}" \
+      --region="${REGION}" \
+      --purpose=REGIONAL_MANAGED_PROXY \
+      --role=ACTIVE \
+      --project="${PROJECT_ID}"
+    echo "Subnet '${subnet}' (${cidr}) created in ${spoke} (proxy-only)."
+  fi
+
+  # Private NAT subnet
+  subnet="pnat-${spoke}"
+  cidr="172.16.${spoke_num}.0/24"
+  if resource_exists gcloud compute networks subnets describe "${subnet}" \
+      --region="${REGION}" --project="${PROJECT_ID}"; then
+    echo "Subnet '${subnet}' already exists, skipping."
+  else
+    gcloud compute networks subnets create "${subnet}" \
+      --network="${spoke}" \
+      --range="${cidr}" \
+      --region="${REGION}" \
+      --purpose=PRIVATE_NAT \
+      --project="${PROJECT_ID}"
+    echo "Subnet '${subnet}' (${cidr}) created in ${spoke} (private NAT)."
   fi
 done
 
-# Compute instance subnet in VPC-1
-COMPUTE_SUBNET_NAME="compute-subnet"
-COMPUTE_SUBNET_CIDR="10.${NUM_VPCS}.0.0/28"
-COMPUTE_VPC="vpc-1"
-if resource_exists gcloud compute networks subnets describe "${COMPUTE_SUBNET_NAME}" \
-    --region="${REGION}" --project="${PROJECT_ID}"; then
-  echo "Subnet '${COMPUTE_SUBNET_NAME}' already exists, skipping."
-else
-  gcloud compute networks subnets create "${COMPUTE_SUBNET_NAME}" \
-    --network="${COMPUTE_VPC}" \
-    --range="${COMPUTE_SUBNET_CIDR}" \
-    --region="${REGION}" \
-    --project="${PROJECT_ID}"
-  echo "Subnet '${COMPUTE_SUBNET_NAME}' (${COMPUTE_SUBNET_CIDR}) created in ${COMPUTE_VPC}."
-fi
-
-# --- Step 5: Firewall rules ---
+# ============================================================
+# Step 5: Firewall rules
+# ============================================================
 echo ""
 echo "--- Step 5: Create firewall rules ---"
 
-# Allow internal traffic within each VPC
-for v in $(seq 1 ${NUM_VPCS}); do
-  vpc_name="vpc-${v}"
-  fw_name="allow-internal-${v}"
-
-  if resource_exists gcloud compute firewall-rules describe "${fw_name}" --project="${PROJECT_ID}"; then
-    echo "Firewall rule '${fw_name}' already exists, skipping."
-  else
-    gcloud compute firewall-rules create "${fw_name}" \
-      --network="${vpc_name}" \
-      --allow=tcp,udp,icmp \
-      --source-ranges="10.0.0.0/8,240.0.0.0/4" \
-      --direction=INGRESS \
-      --project="${PROJECT_ID}"
-    echo "Firewall rule '${fw_name}' created."
-  fi
-done
-
-# Allow IAP SSH on VPC-1 (where compute instance lives)
-FW_IAP="allow-iap-ssh-vpc-1"
-if resource_exists gcloud compute firewall-rules describe "${FW_IAP}" --project="${PROJECT_ID}"; then
-  echo "Firewall rule '${FW_IAP}' already exists, skipping."
+# Hub: allow IAP SSH
+if resource_exists gcloud compute firewall-rules describe "allow-iap-ssh-hub" --project="${PROJECT_ID}"; then
+  echo "Firewall rule 'allow-iap-ssh-hub' already exists, skipping."
 else
-  gcloud compute firewall-rules create "${FW_IAP}" \
-    --network="${COMPUTE_VPC}" \
+  gcloud compute firewall-rules create "allow-iap-ssh-hub" \
+    --network=hub \
     --allow=tcp:22 \
     --source-ranges="35.235.240.0/20" \
     --direction=INGRESS \
     --project="${PROJECT_ID}"
-  echo "Firewall rule '${FW_IAP}' created."
+  echo "Firewall rule 'allow-iap-ssh-hub' created."
 fi
 
-# --- Step 6: Deploy Cloud Run services ---
-echo ""
-echo "--- Step 6: Deploy Cloud Run services (${NUM_VPCS} VPCs × ${NUM_SUBNETS_PER_VPC} subnets × ${NUM_SERVICES_PER_SUBNET} services = $((NUM_VPCS * NUM_SUBNETS_PER_VPC * NUM_SERVICES_PER_SUBNET)) total) ---"
+# Hub: allow NAT ingress (traffic from spokes via Hybrid NAT)
+if resource_exists gcloud compute firewall-rules describe "allow-nat-ingress-hub" --project="${PROJECT_ID}"; then
+  echo "Firewall rule 'allow-nat-ingress-hub' already exists, skipping."
+else
+  gcloud compute firewall-rules create "allow-nat-ingress-hub" \
+    --network=hub \
+    --allow=tcp,udp,icmp \
+    --source-ranges="172.16.0.0/16" \
+    --direction=INGRESS \
+    --project="${PROJECT_ID}"
+  echo "Firewall rule 'allow-nat-ingress-hub' created."
+fi
 
-deploy_count=0
-running_jobs=0
+# Hub: allow internal traffic
+if resource_exists gcloud compute firewall-rules describe "allow-internal-hub" --project="${PROJECT_ID}"; then
+  echo "Firewall rule 'allow-internal-hub' already exists, skipping."
+else
+  gcloud compute firewall-rules create "allow-internal-hub" \
+    --network=hub \
+    --allow=tcp,udp,icmp \
+    --source-ranges="10.0.0.0/8" \
+    --direction=INGRESS \
+    --project="${PROJECT_ID}"
+  echo "Firewall rule 'allow-internal-hub' created."
+fi
 
-for v in $(seq 1 ${NUM_VPCS}); do
-  vpc_name="vpc-${v}"
-  for s in $(seq 0 $((NUM_SUBNETS_PER_VPC - 1))); do
-    base="${CLASS_E_BASES[$s]}"
-    subnet_name="class-e-${base}-vpc-${v}"
-
-    for i in $(seq 1 ${NUM_SERVICES_PER_SUBNET}); do
-      service_name="cr-v${v}-s$((s + 1))-$(printf '%02d' ${i})"
-
-      # Check if service already exists
-      if resource_exists gcloud run services describe "${service_name}" \
-          --region="${REGION}" --project="${PROJECT_ID}"; then
-        echo "Service '${service_name}' already exists, skipping."
-        continue
-      fi
-
-      echo "Deploying '${service_name}' -> ${vpc_name}/${subnet_name}..."
-      gcloud run deploy "${service_name}" \
-        --image="${IMAGE_URL}" \
-        --region="${REGION}" \
-        --network="${vpc_name}" \
-        --subnet="${subnet_name}" \
-        --vpc-egress=all-traffic \
-        --ingress=internal \
-        --max-instances=20 \
-        --min-instances=0 \
-        --cpu-throttling \
-        --no-allow-unauthenticated \
-        --project="${PROJECT_ID}" \
-        --quiet &
-
-      running_jobs=$((running_jobs + 1))
-      deploy_count=$((deploy_count + 1))
-
-      # Throttle: wait for one job to finish if at max concurrency
-      if [[ ${running_jobs} -ge ${MAX_CONCURRENT_DEPLOYS} ]]; then
-        wait -n
-        running_jobs=$((running_jobs - 1))
-      fi
-    done
-  done
+# Spokes: allow internal + NAT traffic
+for spoke_num in 1 2; do
+  spoke="spoke-${spoke_num}"
+  fw="allow-internal-${spoke}"
+  if resource_exists gcloud compute firewall-rules describe "${fw}" --project="${PROJECT_ID}"; then
+    echo "Firewall rule '${fw}' already exists, skipping."
+  else
+    gcloud compute firewall-rules create "${fw}" \
+      --network="${spoke}" \
+      --allow=tcp,udp,icmp \
+      --source-ranges="10.0.0.0/8,172.16.0.0/16" \
+      --direction=INGRESS \
+      --project="${PROJECT_ID}"
+    echo "Firewall rule '${fw}' created."
+  fi
 done
 
-# Wait for remaining deployments
-wait
-echo "Deployed ${deploy_count} new Cloud Run services."
-
-# --- Step 7: Create Compute Instance ---
+# ============================================================
+# Step 6: Compute VM (hub)
+# ============================================================
 echo ""
-echo "--- Step 7: Create Compute Instance ---"
-if resource_exists gcloud compute instances describe "${COMPUTE_INSTANCE_NAME}" \
+echo "--- Step 6: Create Compute VM ---"
+if resource_exists gcloud compute instances describe "vm-hub" \
     --zone="${ZONE}" --project="${PROJECT_ID}"; then
-  echo "Instance '${COMPUTE_INSTANCE_NAME}' already exists, skipping."
+  echo "Instance 'vm-hub' already exists, skipping."
 else
-  gcloud compute instances create "${COMPUTE_INSTANCE_NAME}" \
+  gcloud compute instances create "vm-hub" \
     --zone="${ZONE}" \
     --machine-type=e2-micro \
-    --network-interface=network=${COMPUTE_VPC},subnet=compute-subnet,no-address \
-    --project="${PROJECT_ID}"
-  echo "Instance '${COMPUTE_INSTANCE_NAME}' created."
-fi
-
-# --- Step 8: Create Webserver Instance ---
-echo ""
-echo "--- Step 8: Create Webserver Instance ---"
-if resource_exists gcloud compute instances describe "${WEBSERVER_INSTANCE_NAME}" \
-    --zone="${ZONE}" --project="${PROJECT_ID}"; then
-  echo "Instance '${WEBSERVER_INSTANCE_NAME}' already exists, skipping."
-else
-  gcloud compute instances create "${WEBSERVER_INSTANCE_NAME}" \
-    --zone="${ZONE}" \
-    --machine-type=e2-micro \
-    --network-interface=network=${COMPUTE_VPC},subnet=compute-subnet,no-address \
+    --network-interface=network=hub,subnet=compute-hub,no-address \
     --metadata=startup-script='#!/bin/bash
-apt-get update -y
-apt-get install -y nginx
-systemctl enable nginx
-systemctl start nginx' \
+mkdir -p /var/www
+cat > /var/www/index.html <<HTMLEOF
+Hello from vm-hub ($(hostname))
+HTMLEOF
+cat > /etc/systemd/system/webserver.service <<UNIT
+[Unit]
+Description=Simple Python HTTP Server
+After=network.target
+[Service]
+WorkingDirectory=/var/www
+ExecStart=/usr/bin/python3 -m http.server 80
+Restart=always
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now webserver' \
     --project="${PROJECT_ID}"
-  echo "Instance '${WEBSERVER_INSTANCE_NAME}' created."
+  echo "Instance 'vm-hub' created."
 fi
 
-# --- Step 9: Deploy proxy Cloud Run service ---
+# ============================================================
+# Step 7: Cloud Run services (one per spoke)
+# ============================================================
 echo ""
-echo "--- Step 9: Deploy proxy Cloud Run service ---"
+echo "--- Step 7: Deploy Cloud Run services ---"
+for spoke_num in 1 2; do
+  spoke="spoke-${spoke_num}"
+  service="cr-${spoke}"
+  subnet="overlap-${spoke}"
 
-# Get webserver private IP
-WEBSERVER_IP="$(gcloud compute instances describe "${WEBSERVER_INSTANCE_NAME}" \
-  --zone="${ZONE}" --project="${PROJECT_ID}" \
-  --format='get(networkInterfaces[0].networkIP)' 2>/dev/null || true)"
-
-if [[ -z "${WEBSERVER_IP}" ]]; then
-  echo "WARNING: Could not determine webserver IP. Skipping proxy service deployment."
-  echo "Run this script again after the webserver instance is created."
-else
-  echo "Webserver IP: ${WEBSERVER_IP}"
-
-  if resource_exists gcloud run services describe "${PROXY_SERVICE_NAME}" \
+  if resource_exists gcloud run services describe "${service}" \
       --region="${REGION}" --project="${PROJECT_ID}"; then
-    echo "Service '${PROXY_SERVICE_NAME}' already exists, skipping."
+    echo "Service '${service}' already exists, skipping."
   else
-    echo "Deploying '${PROXY_SERVICE_NAME}' -> vpc-2/class-e-240-vpc-2..."
-    gcloud run deploy "${PROXY_SERVICE_NAME}" \
-      --image="${PROXY_IMAGE_URL}" \
+    echo "Deploying '${service}' -> ${spoke}/${subnet}..."
+    gcloud run deploy "${service}" \
+      --image="${SERVICE_IMAGE_URL}" \
       --region="${REGION}" \
-      --network=vpc-2 \
-      --subnet=class-e-240-vpc-2 \
+      --network="${spoke}" \
+      --subnet="${subnet}" \
       --vpc-egress=all-traffic \
       --ingress=internal \
       --max-instances=5 \
       --min-instances=0 \
       --cpu-throttling \
       --no-allow-unauthenticated \
-      --set-env-vars="TARGET_URL=http://${WEBSERVER_IP}" \
       --project="${PROJECT_ID}" \
       --quiet
-    echo "Service '${PROXY_SERVICE_NAME}' deployed."
+    echo "Service '${service}' deployed."
   fi
+done
+
+# ============================================================
+# Step 8: Cloud Run jobs (one per spoke — test client)
+# ============================================================
+echo ""
+echo "--- Step 8: Create Cloud Run jobs ---"
+
+# Get VM IP for job target
+VM_IP="$(gcloud compute instances describe "vm-hub" \
+  --zone="${ZONE}" --project="${PROJECT_ID}" \
+  --format='get(networkInterfaces[0].networkIP)' 2>/dev/null || true)"
+
+if [[ -z "${VM_IP}" ]]; then
+  echo "WARNING: Could not determine VM IP. Skipping job creation."
+  echo "Run this script again after the VM is created."
+else
+  echo "VM IP: ${VM_IP}"
+  for spoke_num in 1 2; do
+    spoke="spoke-${spoke_num}"
+    job="job-${spoke}"
+    subnet="overlap-${spoke}"
+
+    if gcloud run jobs describe "${job}" \
+        --region="${REGION}" --project="${PROJECT_ID}" &>/dev/null; then
+      echo "Job '${job}' already exists, skipping."
+    else
+      echo "Creating '${job}' -> ${spoke}/${subnet}..."
+      gcloud run jobs create "${job}" \
+        --image="${JOB_IMAGE_URL}" \
+        --region="${REGION}" \
+        --network="${spoke}" \
+        --subnet="${subnet}" \
+        --vpc-egress=all-traffic \
+        --max-retries=0 \
+        --task-timeout=60s \
+        --set-env-vars="TARGET_URL=http://${VM_IP}" \
+        --project="${PROJECT_ID}" \
+        --quiet
+      echo "Job '${job}' created."
+    fi
+  done
 fi
 
+# ============================================================
+# Summary
+# ============================================================
 echo ""
 echo "=== Infrastructure setup complete ==="
 echo ""
-echo "Cloud Run services: $((NUM_VPCS * NUM_SUBNETS_PER_VPC * NUM_SERVICES_PER_SUBNET))"
-echo "VPC networks: ${NUM_VPCS}"
-echo "Compute instance: ${COMPUTE_INSTANCE_NAME} (${COMPUTE_VPC}, ${COMPUTE_SUBNET_CIDR})"
+echo "VPCs: hub, spoke-1, spoke-2"
+echo "VM: vm-hub (hub/compute-hub, 10.0.0.0/28)"
+echo "Cloud Run services: cr-spoke-1, cr-spoke-2"
+echo "Cloud Run jobs: job-spoke-1, job-spoke-2"
 echo ""
-echo "SSH to compute instance:"
-echo "  gcloud compute ssh ${COMPUTE_INSTANCE_NAME} --zone=${ZONE} --tunnel-through-iap --project=${PROJECT_ID}"
+echo "Next: run ./setup-connectivity.sh to create VPN, NAT, and ILB."
