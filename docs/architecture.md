@@ -41,8 +41,8 @@ The hub VM sends traffic to the spoke's Internal Load Balancer (on a routable /2
 | `overlap-spoke2` | `spoke-2` | `240.0.0.0/8` | Cloud Run egress (overlapping) |
 | `routable-spoke1` | `spoke-1` | `10.1.0.0/28` | ILB forwarding rule |
 | `routable-spoke2` | `spoke-2` | `10.2.0.0/28` | ILB forwarding rule |
-| `proxy-spoke1` | `spoke-1` | `10.1.1.0/26` | ILB proxy-only (REGIONAL_MANAGED_PROXY) |
-| `proxy-spoke2` | `spoke-2` | `10.2.1.0/26` | ILB proxy-only (REGIONAL_MANAGED_PROXY) |
+| `proxy-spoke1` | `spoke-1` | `241.0.0.0/26` | ILB proxy-only (REGIONAL_MANAGED_PROXY, overlapping) |
+| `proxy-spoke2` | `spoke-2` | `241.0.0.0/26` | ILB proxy-only (REGIONAL_MANAGED_PROXY, overlapping) |
 | `pnat-spoke1` | `spoke-1` | `172.16.1.0/24` | Hybrid NAT source IPs (PRIVATE_NAT) |
 | `pnat-spoke2` | `spoke-2` | `172.16.2.0/24` | Hybrid NAT source IPs (PRIVATE_NAT) |
 
@@ -58,10 +58,10 @@ The hub VM sends traffic to the spoke's Internal Load Balancer (on a routable /2
 | Router | Advertises |
 |---|---|
 | Hub | `10.0.0.0/28` (compute subnet) |
-| Spoke-1 | `10.1.0.0/28`, `10.1.1.0/26`, `172.16.1.0/24` |
-| Spoke-2 | `10.2.0.0/28`, `10.2.1.0/26`, `172.16.2.0/24` |
+| Spoke-1 | `10.1.0.0/28`, `172.16.1.0/24` |
+| Spoke-2 | `10.2.0.0/28`, `172.16.2.0/24` |
 
-Only non-overlapping routes are exchanged. The overlapping `240.0.0.0/8` subnets are **never advertised** — they exist only within each spoke for Cloud Run egress.
+Only non-overlapping routes are exchanged. The overlapping `240.0.0.0/8` and `241.0.0.0/26` subnets are **never advertised** — they exist only within each spoke for Cloud Run egress and ILB proxy capacity respectively.
 
 ## NAT Configuration
 

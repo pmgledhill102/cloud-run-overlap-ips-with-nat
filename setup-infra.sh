@@ -152,9 +152,9 @@ for spoke_num in 1 2; do
     echo "Subnet '${subnet}' (${cidr}) created in ${spoke}."
   fi
 
-  # Proxy-only subnet (ILB)
+  # Proxy-only subnet (ILB) — Class E, same across all spokes (never advertised via BGP)
   subnet="proxy-${spoke}"
-  cidr="10.${spoke_num}.1.0/26"
+  cidr="241.0.0.0/26"
   if resource_exists gcloud compute networks subnets describe "${subnet}" \
       --region="${REGION}" --project="${PROJECT_ID}"; then
     echo "Subnet '${subnet}' already exists, skipping."
