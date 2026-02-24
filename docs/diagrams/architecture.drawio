@@ -1,0 +1,312 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Architecture" id="arch">
+    <mxGraphModel dx="1422" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="Hub-Spoke Architecture — Overlapping IPs with Hybrid NAT" style="text;html=1;fontSize=18;fontStyle=1;align=center;fontColor=#202124;" vertex="1" parent="1">
+          <mxGeometry x="250" y="10" width="1100" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== SPOKE-1 VPC ==================== -->
+        <mxCell id="vpc-s1" value="spoke-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0FE;strokeColor=#4285F4;strokeWidth=2;verticalAlign=top;fontStyle=1;fontSize=16;fontColor=#1A73E8;arcSize=4;container=1;collapsible=0;spacingTop=5;" vertex="1" parent="1">
+          <mxGeometry x="40" y="70" width="420" height="620" as="geometry"/>
+        </mxCell>
+
+        <!-- Overlap subnet -->
+        <mxCell id="sub-overlap-s1" value="overlap-spoke-1  —  240.0.0.0/8 (Class E, overlapping)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-s1">
+          <mxGeometry x="15" y="38" width="390" height="145" as="geometry"/>
+        </mxCell>
+        <mxCell id="cr-s1" value="cr-spoke-1" style="shape=mxgraph.gcp2.cloud_run;fillColor=#AECBFA;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="sub-overlap-s1">
+          <mxGeometry x="48" y="42" width="68" height="53" as="geometry"/>
+        </mxCell>
+        <mxCell id="cr-s1-desc" value="Cloud Run service" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="sub-overlap-s1">
+          <mxGeometry x="32" y="110" width="100" height="14" as="geometry"/>
+        </mxCell>
+        <mxCell id="job-s1" value="job-spoke-1" style="shape=mxgraph.gcp2.cloud_run;fillColor=#C8E6C9;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="sub-overlap-s1">
+          <mxGeometry x="248" y="42" width="68" height="53" as="geometry"/>
+        </mxCell>
+        <mxCell id="job-s1-desc" value="Cloud Run job" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="sub-overlap-s1">
+          <mxGeometry x="237" y="110" width="90" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- Routable subnet + ILB -->
+        <mxCell id="sub-routable-s1" value="routable-spoke-1  —  10.1.0.0/28" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-s1">
+          <mxGeometry x="15" y="200" width="390" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="ilb-s1" value="ilb-spoke-1" style="shape=mxgraph.gcp2.cloud_load_balancing;fillColor=#F8BBD0;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="sub-routable-s1">
+          <mxGeometry x="141" y="28" width="68" height="53" as="geometry"/>
+        </mxCell>
+        <mxCell id="ilb-s1-desc" value="Internal Load Balancer" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="sub-routable-s1">
+          <mxGeometry x="115" y="92" width="120" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- Supporting subnets -->
+        <mxCell id="proxy-s1" value="proxy-spoke-1&#xa;241.0.0.0/26 (Class E)&#xa;ILB Envoy proxies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F9FA;strokeColor=#DADCE0;fontSize=9;fontColor=#5F6368;arcSize=8;" vertex="1" parent="vpc-s1">
+          <mxGeometry x="15" y="325" width="185" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="pnat-s1" value="pnat-spoke-1&#xa;172.16.1.0/24&#xa;Hybrid NAT source IPs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#DADCE0;fontSize=9;fontColor=#5F6368;arcSize=8;" vertex="1" parent="vpc-s1">
+          <mxGeometry x="220" y="325" width="185" height="52" as="geometry"/>
+        </mxCell>
+
+        <!-- Hybrid NAT -->
+        <mxCell id="nat-s1" value="hybrid-nat-spoke-1" style="shape=mxgraph.gcp2.cloud_nat;fillColor=#FFE082;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="vpc-s1">
+          <mxGeometry x="73" y="400" width="68" height="53" as="geometry"/>
+        </mxCell>
+        <mxCell id="nat-s1-desc" value="Private NAT&#xa;nexthop.is_hybrid" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="vpc-s1">
+          <mxGeometry x="47" y="466" width="120" height="24" as="geometry"/>
+        </mxCell>
+
+        <!-- VPN Router -->
+        <mxCell id="router-s1" value="vpn-router-spoke-1" style="shape=mxgraph.gcp2.cloud_router;fillColor=#B39DDB;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="vpc-s1">
+          <mxGeometry x="270" y="400" width="68" height="53" as="geometry"/>
+        </mxCell>
+        <mxCell id="router-s1-desc" value="ASN 65001" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="vpc-s1">
+          <mxGeometry x="274" y="466" width="60" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- VPN Gateway -->
+        <mxCell id="vpngw-s1" value="vpn-gw-spoke-1" style="shape=mxgraph.gcp2.cloud_vpn;fillColor=#CE93D8;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="vpc-s1">
+          <mxGeometry x="176" y="530" width="68" height="53" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== HUB VPC ==================== -->
+        <mxCell id="vpc-hub" value="hub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0FE;strokeColor=#4285F4;strokeWidth=2;verticalAlign=top;fontStyle=1;fontSize=16;fontColor=#1A73E8;arcSize=4;container=1;collapsible=0;spacingTop=5;" vertex="1" parent="1">
+          <mxGeometry x="560" y="70" width="280" height="620" as="geometry"/>
+        </mxCell>
+
+        <!-- Compute subnet -->
+        <mxCell id="sub-compute" value="compute-hub  —  10.0.0.0/28" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-hub">
+          <mxGeometry x="15" y="38" width="250" height="145" as="geometry"/>
+        </mxCell>
+        <mxCell id="vm-hub" value="vm-hub" style="shape=mxgraph.gcp2.compute_engine;fillColor=#AECBFA;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="sub-compute">
+          <mxGeometry x="91" y="35" width="68" height="53" as="geometry"/>
+        </mxCell>
+        <mxCell id="vm-hub-desc" value="e2-micro&#xa;python3 http.server :80" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="sub-compute">
+          <mxGeometry x="65" y="103" width="120" height="24" as="geometry"/>
+        </mxCell>
+
+        <!-- Public NAT -->
+        <mxCell id="nat-hub" value="public-nat-hub" style="shape=mxgraph.gcp2.cloud_nat;fillColor=#FFE082;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="vpc-hub">
+          <mxGeometry x="106" y="220" width="68" height="53" as="geometry"/>
+        </mxCell>
+        <mxCell id="nat-hub-desc" value="Internet access for VM" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="vpc-hub">
+          <mxGeometry x="80" y="286" width="120" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- VPN Router -->
+        <mxCell id="router-hub" value="vpn-router-hub" style="shape=mxgraph.gcp2.cloud_router;fillColor=#B39DDB;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="vpc-hub">
+          <mxGeometry x="106" y="340" width="68" height="53" as="geometry"/>
+        </mxCell>
+        <mxCell id="router-hub-desc" value="ASN 65000" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="vpc-hub">
+          <mxGeometry x="110" y="406" width="60" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- Hub VPN Gateways -->
+        <mxCell id="vpngw-hub-s1" value="vpn-gw-hub&#xa;-to-spoke-1" style="shape=mxgraph.gcp2.cloud_vpn;fillColor=#CE93D8;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=9;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="vpc-hub">
+          <mxGeometry x="20" y="480" width="68" height="53" as="geometry"/>
+        </mxCell>
+        <mxCell id="vpngw-hub-s2" value="vpn-gw-hub&#xa;-to-spoke-2" style="shape=mxgraph.gcp2.cloud_vpn;fillColor=#CE93D8;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=9;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="vpc-hub">
+          <mxGeometry x="192" y="480" width="68" height="53" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== SPOKE-2 VPC ==================== -->
+        <mxCell id="vpc-s2" value="spoke-2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0FE;strokeColor=#4285F4;strokeWidth=2;verticalAlign=top;fontStyle=1;fontSize=16;fontColor=#1A73E8;arcSize=4;container=1;collapsible=0;spacingTop=5;" vertex="1" parent="1">
+          <mxGeometry x="940" y="70" width="420" height="620" as="geometry"/>
+        </mxCell>
+
+        <!-- Overlap subnet -->
+        <mxCell id="sub-overlap-s2" value="overlap-spoke-2  —  240.0.0.0/8 (Class E, overlapping)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-s2">
+          <mxGeometry x="15" y="38" width="390" height="145" as="geometry"/>
+        </mxCell>
+        <mxCell id="cr-s2" value="cr-spoke-2" style="shape=mxgraph.gcp2.cloud_run;fillColor=#AECBFA;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="sub-overlap-s2">
+          <mxGeometry x="48" y="42" width="68" height="53" as="geometry"/>
+        </mxCell>
+        <mxCell id="cr-s2-desc" value="Cloud Run service" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="sub-overlap-s2">
+          <mxGeometry x="32" y="110" width="100" height="14" as="geometry"/>
+        </mxCell>
+        <mxCell id="job-s2" value="job-spoke-2" style="shape=mxgraph.gcp2.cloud_run;fillColor=#C8E6C9;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="sub-overlap-s2">
+          <mxGeometry x="248" y="42" width="68" height="53" as="geometry"/>
+        </mxCell>
+        <mxCell id="job-s2-desc" value="Cloud Run job" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="sub-overlap-s2">
+          <mxGeometry x="237" y="110" width="90" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- Routable subnet + ILB -->
+        <mxCell id="sub-routable-s2" value="routable-spoke-2  —  10.2.0.0/28" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-s2">
+          <mxGeometry x="15" y="200" width="390" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="ilb-s2" value="ilb-spoke-2" style="shape=mxgraph.gcp2.cloud_load_balancing;fillColor=#F8BBD0;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="sub-routable-s2">
+          <mxGeometry x="141" y="28" width="68" height="53" as="geometry"/>
+        </mxCell>
+        <mxCell id="ilb-s2-desc" value="Internal Load Balancer" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="sub-routable-s2">
+          <mxGeometry x="115" y="92" width="120" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- Supporting subnets -->
+        <mxCell id="proxy-s2" value="proxy-spoke-2&#xa;241.0.0.0/26 (Class E)&#xa;ILB Envoy proxies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F9FA;strokeColor=#DADCE0;fontSize=9;fontColor=#5F6368;arcSize=8;" vertex="1" parent="vpc-s2">
+          <mxGeometry x="15" y="325" width="185" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="pnat-s2" value="pnat-spoke-2&#xa;172.16.2.0/24&#xa;Hybrid NAT source IPs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#DADCE0;fontSize=9;fontColor=#5F6368;arcSize=8;" vertex="1" parent="vpc-s2">
+          <mxGeometry x="220" y="325" width="185" height="52" as="geometry"/>
+        </mxCell>
+
+        <!-- Hybrid NAT -->
+        <mxCell id="nat-s2" value="hybrid-nat-spoke-2" style="shape=mxgraph.gcp2.cloud_nat;fillColor=#FFE082;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="vpc-s2">
+          <mxGeometry x="73" y="400" width="68" height="53" as="geometry"/>
+        </mxCell>
+        <mxCell id="nat-s2-desc" value="Private NAT&#xa;nexthop.is_hybrid" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="vpc-s2">
+          <mxGeometry x="47" y="466" width="120" height="24" as="geometry"/>
+        </mxCell>
+
+        <!-- VPN Router -->
+        <mxCell id="router-s2" value="vpn-router-spoke-2" style="shape=mxgraph.gcp2.cloud_router;fillColor=#B39DDB;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="vpc-s2">
+          <mxGeometry x="270" y="400" width="68" height="53" as="geometry"/>
+        </mxCell>
+        <mxCell id="router-s2-desc" value="ASN 65002" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="vpc-s2">
+          <mxGeometry x="274" y="466" width="60" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- VPN Gateway -->
+        <mxCell id="vpngw-s2" value="vpn-gw-spoke-2" style="shape=mxgraph.gcp2.cloud_vpn;fillColor=#CE93D8;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="vpc-s2">
+          <mxGeometry x="176" y="530" width="68" height="53" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== VPN CONNECTIONS ==================== -->
+        <mxCell id="vpn-line-s1" value="" style="endArrow=none;startArrow=none;strokeColor=#7B1FA2;strokeWidth=4;html=1;" edge="1" parent="1" source="vpngw-hub-s1" target="vpngw-s1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="vpn-label-s1" value="HA VPN&#xa;4 tunnels" style="text;fontSize=10;fontColor=#7B1FA2;align=center;fontStyle=1;fillColor=#F3E5F5;rounded=1;strokeColor=#CE93D8;" vertex="1" parent="1">
+          <mxGeometry x="370" y="762" width="80" height="32" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="vpn-line-s2" value="" style="endArrow=none;startArrow=none;strokeColor=#7B1FA2;strokeWidth=4;html=1;" edge="1" parent="1" source="vpngw-hub-s2" target="vpngw-s2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="vpn-label-s2" value="HA VPN&#xa;4 tunnels" style="text;fontSize=10;fontColor=#7B1FA2;align=center;fontStyle=1;fillColor=#F3E5F5;rounded=1;strokeColor=#CE93D8;" vertex="1" parent="1">
+          <mxGeometry x="950" y="762" width="80" height="32" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== KEY FINDINGS ==================== -->
+        <mxCell id="findings" value="Key Findings&#xa;&#xa;✓  Cloud Run services work on overlapping Class E (240.0.0.0/8) subnets across VPCs&#xa;✓  Hybrid NAT translates overlapping IPs to unique routable IPs for cross-VPC traffic&#xa;✓  ILB proxy-only subnets accept Class E (241.0.0.0/26) — can overlap across spokes" style="text;fontSize=10;fontColor=#3C4043;align=left;verticalAlign=top;fillColor=#FFF8E1;rounded=1;strokeColor=#F9A825;spacingLeft=10;spacingRight=10;spacingTop=6;spacingBottom=6;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="40" y="810" width="500" height="80" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Traffic Flows" id="flows">
+    <mxGraphModel dx="1422" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ==================== FLOW A: SPOKE → HUB ==================== -->
+        <mxCell id="flow-a-title" value="Flow A — Spoke → Hub (Hybrid NAT)" style="text;fontSize=16;fontStyle=1;align=left;fontColor=#1B5E20;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="500" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow-a-desc" value="Cloud Run Job on overlapping IP reaches Hub VM via Hybrid NAT + HA VPN" style="text;fontSize=11;fontColor=#5F6368;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="60" width="550" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow A: spoke VPC boundary -->
+        <mxCell id="fa-spoke-bg" value="" style="rounded=1;fillColor=none;strokeColor=#4285F4;strokeWidth=1;dashed=1;dashPattern=5 5;" vertex="1" parent="1">
+          <mxGeometry x="25" y="95" width="560" height="115" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-spoke-label" value="spoke-{n} VPC" style="text;fontSize=9;fontColor=#4285F4;fontStyle=2;align=left;" vertex="1" parent="1">
+          <mxGeometry x="30" y="96" width="80" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow A: hub VPC boundary -->
+        <mxCell id="fa-hub-bg" value="" style="rounded=1;fillColor=none;strokeColor=#4285F4;strokeWidth=1;dashed=1;dashPattern=5 5;" vertex="1" parent="1">
+          <mxGeometry x="955" y="95" width="210" height="115" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-hub-label" value="hub VPC" style="text;fontSize=9;fontColor=#4285F4;fontStyle=2;align=left;" vertex="1" parent="1">
+          <mxGeometry x="960" y="96" width="60" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow A boxes -->
+        <mxCell id="fa-1" value="Cloud Run Job&#xa;job-spoke-{n}&#xa;Source IP: 240.x.x.x" style="rounded=1;whiteSpace=wrap;fillColor=#C8E6C9;strokeColor=#2E7D32;strokeWidth=2;fontSize=11;fontColor=#1B5E20;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="115" width="180" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-2" value="Hybrid NAT&#xa;hybrid-nat-spoke-{n}&#xa;SNAT: 240.x → 172.16.{n}.x" style="rounded=1;whiteSpace=wrap;fillColor=#FFF8E1;strokeColor=#F9A825;strokeWidth=2;fontSize=11;fontColor=#E65100;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="340" y="115" width="230" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-3" value="HA VPN Tunnel&#xa;spoke-{n} → hub&#xa;Via BGP learned routes" style="rounded=1;whiteSpace=wrap;fillColor=#F3E5F5;strokeColor=#7B1FA2;strokeWidth=2;fontSize=11;fontColor=#4A148C;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="690" y="115" width="180" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-4" value="Hub VM&#xa;vm-hub&#xa;Dest: 10.0.0.2:80&#xa;Sees source: 172.16.{n}.x" style="rounded=1;whiteSpace=wrap;fillColor=#E3F2FD;strokeColor=#1565C0;strokeWidth=2;fontSize=11;fontColor=#0D47A1;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="970" y="108" width="180" height="85" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow A arrows -->
+        <mxCell id="fa-a1" value="①" style="endArrow=classic;strokeColor=#2E7D32;strokeWidth=3;fontSize=11;fontColor=#2E7D32;fontStyle=1;" edge="1" parent="1" source="fa-1" target="fa-2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-a2" value="②" style="endArrow=classic;strokeColor=#2E7D32;strokeWidth=3;fontSize=11;fontColor=#2E7D32;fontStyle=1;" edge="1" parent="1" source="fa-2" target="fa-3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-a3" value="③" style="endArrow=classic;strokeColor=#2E7D32;strokeWidth=3;fontSize=11;fontColor=#2E7D32;fontStyle=1;" edge="1" parent="1" source="fa-3" target="fa-4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== FLOW B: HUB → SPOKE ==================== -->
+        <mxCell id="flow-b-title" value="Flow B — Hub → Spoke (Internal Load Balancer)" style="text;fontSize=16;fontStyle=1;align=left;fontColor=#0D47A1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="500" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow-b-desc" value="Hub VM reaches Cloud Run service in spoke via HA VPN + ILB with serverless NEG" style="text;fontSize=11;fontColor=#5F6368;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="310" width="550" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow B: hub VPC boundary -->
+        <mxCell id="fb-hub-bg" value="" style="rounded=1;fillColor=none;strokeColor=#4285F4;strokeWidth=1;dashed=1;dashPattern=5 5;" vertex="1" parent="1">
+          <mxGeometry x="25" y="345" width="210" height="115" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-hub-label" value="hub VPC" style="text;fontSize=9;fontColor=#4285F4;fontStyle=2;align=left;" vertex="1" parent="1">
+          <mxGeometry x="30" y="346" width="60" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow B: spoke VPC boundary -->
+        <mxCell id="fb-spoke-bg" value="" style="rounded=1;fillColor=none;strokeColor=#4285F4;strokeWidth=1;dashed=1;dashPattern=5 5;" vertex="1" parent="1">
+          <mxGeometry x="625" y="345" width="540" height="115" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-spoke-label" value="spoke-{n} VPC" style="text;fontSize=9;fontColor=#4285F4;fontStyle=2;align=left;" vertex="1" parent="1">
+          <mxGeometry x="630" y="346" width="80" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow B boxes -->
+        <mxCell id="fb-1" value="Hub VM&#xa;vm-hub&#xa;Source IP: 10.0.0.2" style="rounded=1;whiteSpace=wrap;fillColor=#E3F2FD;strokeColor=#1565C0;strokeWidth=2;fontSize=11;fontColor=#0D47A1;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="365" width="180" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-2" value="HA VPN Tunnel&#xa;hub → spoke-{n}&#xa;Via BGP learned routes" style="rounded=1;whiteSpace=wrap;fillColor=#F3E5F5;strokeColor=#7B1FA2;strokeWidth=2;fontSize=11;fontColor=#4A148C;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="340" y="365" width="180" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-3" value="Internal Load Balancer&#xa;ilb-spoke-{n}&#xa;Dest: 10.{n}.0.x:80&#xa;(routable subnet)" style="rounded=1;whiteSpace=wrap;fillColor=#FCE4EC;strokeColor=#C62828;strokeWidth=2;fontSize=11;fontColor=#B71C1C;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="640" y="355" width="200" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-4" value="Cloud Run Service&#xa;cr-spoke-{n}&#xa;Via serverless NEG&#xa;Running on 240.x.x.x" style="rounded=1;whiteSpace=wrap;fillColor=#E8F5E9;strokeColor=#2E7D32;strokeWidth=2;fontSize=11;fontColor=#1B5E20;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="960" y="355" width="190" height="85" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow B arrows -->
+        <mxCell id="fb-a1" value="①" style="endArrow=classic;strokeColor=#1565C0;strokeWidth=3;fontSize=11;fontColor=#1565C0;fontStyle=1;" edge="1" parent="1" source="fb-1" target="fb-2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-a2" value="②" style="endArrow=classic;strokeColor=#1565C0;strokeWidth=3;fontSize=11;fontColor=#1565C0;fontStyle=1;" edge="1" parent="1" source="fb-2" target="fb-3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-a3" value="③" style="endArrow=classic;strokeColor=#1565C0;strokeWidth=3;fontSize=11;fontColor=#1565C0;fontStyle=1;" edge="1" parent="1" source="fb-3" target="fb-4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== KEY INSIGHT ==================== -->
+        <mxCell id="insight" value="Key Insight: The overlapping 240.0.0.0/8 addresses are never routed across VPCs.&#xa;Flow A uses Hybrid NAT to translate them. Flow B uses an ILB on a routable /28 subnet —&#xa;the serverless NEG handles the last hop to Cloud Run internally." style="text;fontSize=11;fontColor=#3C4043;align=left;verticalAlign=top;fillColor=#E8F0FE;rounded=1;strokeColor=#4285F4;spacingLeft=10;spacingRight=10;spacingTop=8;spacingBottom=8;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="40" y="510" width="620" height="60" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

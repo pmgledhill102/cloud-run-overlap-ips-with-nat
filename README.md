@@ -10,21 +10,9 @@ Google Cloud allows non-routable IP ranges (Class E: `240.0.0.0/4`) to be used i
 
 ## Architecture
 
-```
-                     HA VPN (4 tunnels)              HA VPN (4 tunnels)
-  +-----------+  <========================>  +-----+  <========================>  +-----------+
-  |  spoke-1  |                              | hub |                              |  spoke-2  |
-  +-----------+                              +-----+                              +-----------+
-  CR service          Hybrid NAT             VM (webserver                        CR service
-  CR job (test)       (spoke→hub)            + test client)     Hybrid NAT        CR job (test)
-  240.0.0.0/8                                10.0.0.0/28       (spoke→hub)        240.0.0.0/8
-  ILB on 10.1.0.0/28                         Public NAT                           ILB on 10.2.0.0/28
-                                             (internet access)
-```
+![Hub-Spoke Architecture](docs/diagrams/architecture.drawio.svg)
 
-**Flow A — Spoke → Hub:** Cloud Run Job (240.x.x.x) → Hybrid NAT (→172.16.x.x) → HA VPN → VM (10.0.0.x)
-
-**Flow B — Hub → Spoke:** VM (10.0.0.x) → HA VPN → ILB (10.x.0.x) → serverless NEG → Cloud Run service
+![Traffic Flows](docs/diagrams/traffic-flows.drawio.svg)
 
 See [docs/architecture.md](docs/architecture.md) for full details on subnets, BGP, and cost estimates.
 

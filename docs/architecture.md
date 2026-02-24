@@ -16,19 +16,11 @@ Yes. GCP accepts Class E ranges for `REGIONAL_MANAGED_PROXY` purpose subnets (e.
 
 ## Topology
 
-```
-                     HA VPN (4 tunnels)              HA VPN (4 tunnels)
-  +-----------+  <========================>  +-----+  <========================>  +-----------+
-  |  spoke-1  |                              | hub |                              |  spoke-2  |
-  +-----------+                              +-----+                              +-----------+
-  CR service          Hybrid NAT             VM (webserver                        CR service
-  CR job (test)       (spoke→hub)            + test client)     Hybrid NAT        CR job (test)
-  240.0.0.0/8                                10.0.0.0/28       (spoke→hub)        240.0.0.0/8
-  ILB on 10.1.0.0/28                         Public NAT                           ILB on 10.2.0.0/28
-                                             (internet access)
-```
+![Hub-Spoke Architecture](diagrams/architecture.drawio.svg)
 
 ## Traffic Flows
+
+![Traffic Flows](diagrams/traffic-flows.drawio.svg)
 
 ### Flow A — Spoke → Hub (Hybrid NAT)
 
