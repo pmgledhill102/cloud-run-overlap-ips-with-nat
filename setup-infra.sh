@@ -16,7 +16,11 @@ REPO_NAME="cloud-run-nat-poc"
 IMAGE_NAME="sleep-server"
 IMAGE_TAG="latest"
 IMAGE_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_TAG}"
+PROXY_IMAGE_NAME="proxy-server"
+PROXY_IMAGE_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${PROXY_IMAGE_NAME}:${IMAGE_TAG}"
+PROXY_SERVICE_NAME="cr-proxy-v2"
 COMPUTE_INSTANCE_NAME="nat-poc-vm"
+WEBSERVER_INSTANCE_NAME="nat-poc-webserver"
 MAX_CONCURRENT_DEPLOYS=5
 
 NUM_VPCS=2
@@ -62,9 +66,21 @@ else
   echo "Building container image..."
   gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet 2>/dev/null || true
 
-  docker build -t "${IMAGE_URL}" "${SCRIPT_DIR}/container"
+  docker build --platform linux/amd64 -t "${IMAGE_URL}" "${SCRIPT_DIR}/container"
   docker push "${IMAGE_URL}"
   echo "Image pushed to ${IMAGE_URL}"
+fi
+
+# Build proxy image
+if gcloud artifacts docker images describe "${PROXY_IMAGE_URL}" --project="${PROJECT_ID}" &>/dev/null; then
+  echo "Image '${PROXY_IMAGE_URL}' already exists, skipping build."
+else
+  echo "Building proxy container image..."
+  gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet 2>/dev/null || true
+
+  docker build --platform linux/amd64 -t "${PROXY_IMAGE_URL}" "${SCRIPT_DIR}/container-proxy"
+  docker push "${PROXY_IMAGE_URL}"
+  echo "Image pushed to ${PROXY_IMAGE_URL}"
 fi
 
 # --- Step 3: Create VPC networks ---
@@ -246,6 +262,64 @@ else
     --network-interface=network=${COMPUTE_VPC},subnet=compute-subnet,no-address \
     --project="${PROJECT_ID}"
   echo "Instance '${COMPUTE_INSTANCE_NAME}' created."
+fi
+
+# --- Step 8: Create Webserver Instance ---
+echo ""
+echo "--- Step 8: Create Webserver Instance ---"
+if resource_exists gcloud compute instances describe "${WEBSERVER_INSTANCE_NAME}" \
+    --zone="${ZONE}" --project="${PROJECT_ID}"; then
+  echo "Instance '${WEBSERVER_INSTANCE_NAME}' already exists, skipping."
+else
+  gcloud compute instances create "${WEBSERVER_INSTANCE_NAME}" \
+    --zone="${ZONE}" \
+    --machine-type=e2-micro \
+    --network-interface=network=${COMPUTE_VPC},subnet=compute-subnet,no-address \
+    --metadata=startup-script='#!/bin/bash
+apt-get update -y
+apt-get install -y nginx
+systemctl enable nginx
+systemctl start nginx' \
+    --project="${PROJECT_ID}"
+  echo "Instance '${WEBSERVER_INSTANCE_NAME}' created."
+fi
+
+# --- Step 9: Deploy proxy Cloud Run service ---
+echo ""
+echo "--- Step 9: Deploy proxy Cloud Run service ---"
+
+# Get webserver private IP
+WEBSERVER_IP="$(gcloud compute instances describe "${WEBSERVER_INSTANCE_NAME}" \
+  --zone="${ZONE}" --project="${PROJECT_ID}" \
+  --format='get(networkInterfaces[0].networkIP)' 2>/dev/null || true)"
+
+if [[ -z "${WEBSERVER_IP}" ]]; then
+  echo "WARNING: Could not determine webserver IP. Skipping proxy service deployment."
+  echo "Run this script again after the webserver instance is created."
+else
+  echo "Webserver IP: ${WEBSERVER_IP}"
+
+  if resource_exists gcloud run services describe "${PROXY_SERVICE_NAME}" \
+      --region="${REGION}" --project="${PROJECT_ID}"; then
+    echo "Service '${PROXY_SERVICE_NAME}' already exists, skipping."
+  else
+    echo "Deploying '${PROXY_SERVICE_NAME}' -> vpc-2/class-e-240-vpc-2..."
+    gcloud run deploy "${PROXY_SERVICE_NAME}" \
+      --image="${PROXY_IMAGE_URL}" \
+      --region="${REGION}" \
+      --network=vpc-2 \
+      --subnet=class-e-240-vpc-2 \
+      --vpc-egress=all-traffic \
+      --ingress=internal \
+      --max-instances=5 \
+      --min-instances=0 \
+      --cpu-throttling \
+      --no-allow-unauthenticated \
+      --set-env-vars="TARGET_URL=http://${WEBSERVER_IP}" \
+      --project="${PROJECT_ID}" \
+      --quiet
+    echo "Service '${PROXY_SERVICE_NAME}' deployed."
+  fi
 fi
 
 echo ""

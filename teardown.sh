@@ -12,6 +12,8 @@ REGION="europe-north2"
 ZONE="${REGION}-a"
 REPO_NAME="cloud-run-nat-poc"
 COMPUTE_INSTANCE_NAME="nat-poc-vm"
+WEBSERVER_INSTANCE_NAME="nat-poc-webserver"
+PROXY_SERVICE_NAME="cr-proxy-v2"
 SA_NAME="cloud-run-nat-poc"
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 MAX_CONCURRENT_DELETES=5
@@ -33,18 +35,32 @@ resource_exists() {
 
 # --- Step 1: Delete Compute Instance ---
 echo "--- Step 1: Delete Compute Instance ---"
-if resource_exists gcloud compute instances describe "${COMPUTE_INSTANCE_NAME}" \
-    --zone="${ZONE}" --project="${PROJECT_ID}"; then
-  gcloud compute instances delete "${COMPUTE_INSTANCE_NAME}" \
-    --zone="${ZONE}" --project="${PROJECT_ID}" --quiet
-  echo "Instance '${COMPUTE_INSTANCE_NAME}' deleted."
-else
-  echo "Instance '${COMPUTE_INSTANCE_NAME}' does not exist, skipping."
-fi
+for inst in "${COMPUTE_INSTANCE_NAME}" "${WEBSERVER_INSTANCE_NAME}"; do
+  if resource_exists gcloud compute instances describe "${inst}" \
+      --zone="${ZONE}" --project="${PROJECT_ID}"; then
+    gcloud compute instances delete "${inst}" \
+      --zone="${ZONE}" --project="${PROJECT_ID}" --quiet
+    echo "Instance '${inst}' deleted."
+  else
+    echo "Instance '${inst}' does not exist, skipping."
+  fi
+done
 
 # --- Step 2: Delete Cloud Run services ---
 echo ""
 echo "--- Step 2: Delete Cloud Run services ---"
+
+# Delete proxy service
+if resource_exists gcloud run services describe "${PROXY_SERVICE_NAME}" \
+    --region="${REGION}" --project="${PROJECT_ID}"; then
+  echo "Deleting '${PROXY_SERVICE_NAME}'..."
+  gcloud run services delete "${PROXY_SERVICE_NAME}" \
+    --region="${REGION}" --project="${PROJECT_ID}" --quiet
+  echo "Service '${PROXY_SERVICE_NAME}' deleted."
+else
+  echo "Service '${PROXY_SERVICE_NAME}' does not exist, skipping."
+fi
+
 delete_count=0
 running_jobs=0
 

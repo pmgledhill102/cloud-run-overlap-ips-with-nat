@@ -26,6 +26,7 @@ All scripts read `PROJECT_ID` from `gcloud config get-value project`. Region is 
   - Direct VPC egress into Class E subnets, private ingress only
   - maxInstances=20, minInstances=0, request-based billing
 - **1 Compute Instance** (`nat-poc-vm`) in VPC-1, private IP only, SSH via IAP
+- **1 Webserver Instance** (`nat-poc-webserver`) in VPC-1/compute-subnet, nginx on port 80, private IP only
 
 ## IAM Roles (bound by setup-iam.sh)
 
