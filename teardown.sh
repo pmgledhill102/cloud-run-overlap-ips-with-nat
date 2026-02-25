@@ -21,11 +21,14 @@ SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 echo "=== Teardown Infrastructure for project: ${PROJECT_ID} ==="
 echo ""
 
-# --- Helper ---
+# --- Helpers ---
 resource_exists() {
   "$@" &>/dev/null
   return $?
 }
+
+# Track resources that couldn't be deleted (subnets/VPCs held by Cloud Run)
+FAILED_RESOURCES=()
 
 # ============================================================
 # Step 1: Delete Cloud Run services and jobs
@@ -267,8 +270,9 @@ delete_subnet_with_retry() {
       sleep "${wait_secs}"
       wait_secs=$((wait_secs * 2))
     else
-      echo "  ERROR: Could not delete subnet '${subnet}' after ${max_attempts} attempts."
-      return 1
+      echo "  WARNING: Could not delete subnet '${subnet}' — still in use (Cloud Run may need more time to release)."
+      FAILED_RESOURCES+=("subnet/${subnet}")
+      return 0  # continue teardown
     fi
   done
 }
@@ -289,8 +293,12 @@ echo ""
 echo "--- Step 10: Delete VPC networks ---"
 for vpc in hub spoke-1 spoke-2; do
   if resource_exists gcloud compute networks describe "${vpc}" --project="${PROJECT_ID}"; then
-    gcloud compute networks delete "${vpc}" --project="${PROJECT_ID}" --quiet
-    echo "VPC '${vpc}' deleted."
+    if gcloud compute networks delete "${vpc}" --project="${PROJECT_ID}" --quiet 2>/dev/null; then
+      echo "VPC '${vpc}' deleted."
+    else
+      echo "  WARNING: Could not delete VPC '${vpc}' — subnets may still be releasing."
+      FAILED_RESOURCES+=("vpc/${vpc}")
+    fi
   else
     echo "VPC '${vpc}' does not exist, skipping."
   fi
@@ -360,4 +368,16 @@ else
 fi
 
 echo ""
-echo "=== Teardown complete ==="
+if [[ ${#FAILED_RESOURCES[@]} -gt 0 ]]; then
+  echo "=== Teardown complete (with warnings) ==="
+  echo ""
+  echo "The following resources could not be deleted (Cloud Run may still be"
+  echo "releasing VPC address reservations). These are free and pose no risk."
+  echo "Re-run this script later, or delete manually:"
+  echo ""
+  for res in "${FAILED_RESOURCES[@]}"; do
+    echo "  - ${res}"
+  done
+else
+  echo "=== Teardown complete ==="
+fi
