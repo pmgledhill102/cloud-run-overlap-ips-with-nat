@@ -16,11 +16,11 @@ Yes. GCP accepts Class E ranges for `REGIONAL_MANAGED_PROXY` purpose subnets (e.
 
 ## Topology
 
-![Hub-Spoke Architecture](diagrams/architecture.drawio)
+![Hub-Spoke Architecture](diagrams/architecture.drawio.svg)
 
 ## Traffic Flows
 
-![Traffic Flows](diagrams/traffic-flows.drawio)
+![Traffic Flows](diagrams/traffic-flows.drawio.svg)
 
 ### Flow A — Spoke → Hub (Hybrid NAT)
 
