@@ -1,0 +1,182 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Traffic Flows" id="flows">
+    <mxGraphModel dx="1422" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ==================== FLOW A: SPOKE → HUB (Hybrid NAT) ==================== -->
+        <mxCell id="flow-a-title" value="Flow A — Spoke → Hub (Hybrid NAT)" style="text;html=1;fontSize=16;fontStyle=1;align=left;fontColor=#1B5E20;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="500" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow-a-desc" value="Cloud Run Job on overlapping IP reaches Hub VM via Hybrid NAT + HA VPN" style="text;html=1;fontSize=11;fontColor=#5F6368;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="48" width="550" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow A: spoke VPC boundary -->
+        <mxCell id="fa-spoke-bg" value="" style="rounded=1;fillColor=none;strokeColor=#4285F4;strokeWidth=1;dashed=1;dashPattern=5 5;" vertex="1" parent="1">
+          <mxGeometry x="25" y="80" width="700" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-spoke-label" value="spoke-1 VPC" style="text;html=1;fontSize=9;fontColor=#4285F4;fontStyle=2;align=left;" vertex="1" parent="1">
+          <mxGeometry x="30" y="81" width="80" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow A: hub VPC boundary -->
+        <mxCell id="fa-hub-bg" value="" style="rounded=1;fillColor=none;strokeColor=#4285F4;strokeWidth=1;dashed=1;dashPattern=5 5;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="80" width="260" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-hub-label" value="hub VPC" style="text;html=1;fontSize=9;fontColor=#4285F4;fontStyle=2;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1135" y="81" width="60" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow A: Box 1 — Cloud Run Job -->
+        <mxCell id="fa-1" value="&lt;b&gt;Cloud Run Job&lt;/b&gt;&lt;br&gt;job-spoke-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;strokeWidth=2;fontSize=11;fontColor=#1B5E20;arcSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="200" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-1-ip" value="&lt;font style=&quot;font-size:10px;&quot;&gt;&lt;b&gt;src:&lt;/b&gt; 240.0.1.5&lt;br&gt;&lt;b&gt;dst:&lt;/b&gt; 10.0.0.2&lt;br&gt;&lt;b&gt;port:&lt;/b&gt; 80&lt;/font&gt;" style="text;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;rounded=1;strokeColor=#DADCE0;spacingLeft=6;spacingRight=6;spacingTop=4;spacingBottom=4;fontFamily=monospace;" vertex="1" parent="1">
+          <mxGeometry x="60" y="155" width="160" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow A: Box 2 — Hybrid NAT -->
+        <mxCell id="fa-2" value="&lt;b&gt;Hybrid NAT&lt;/b&gt;&lt;br&gt;hybrid-nat-spoke-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;strokeWidth=2;fontSize=11;fontColor=#E65100;arcSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="380" y="100" width="230" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-2-ip" value="&lt;font style=&quot;font-size:10px;&quot;&gt;&lt;b&gt;SNAT:&lt;/b&gt; 240.0.1.5 → &lt;b&gt;172.16.1.3&lt;/b&gt;&lt;br&gt;&lt;b&gt;dst:&lt;/b&gt; 10.0.0.2 (unchanged)&lt;br&gt;&lt;b&gt;port:&lt;/b&gt; 80&lt;/font&gt;" style="text;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;rounded=1;strokeColor=#DADCE0;spacingLeft=6;spacingRight=6;spacingTop=4;spacingBottom=4;fontFamily=monospace;" vertex="1" parent="1">
+          <mxGeometry x="393" y="155" width="204" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow A: Box 3 — HA VPN Tunnel -->
+        <mxCell id="fa-3" value="&lt;b&gt;HA VPN Tunnel&lt;/b&gt;&lt;br&gt;spoke-1 → hub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;strokeWidth=2;fontSize=11;fontColor=#4A148C;arcSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="810" y="100" width="200" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-3-ip" value="&lt;font style=&quot;font-size:10px;&quot;&gt;&lt;b&gt;src:&lt;/b&gt; 172.16.1.3&lt;br&gt;&lt;b&gt;dst:&lt;/b&gt; 10.0.0.2&lt;br&gt;(IPsec encrypted)&lt;/font&gt;" style="text;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;rounded=1;strokeColor=#DADCE0;spacingLeft=6;spacingRight=6;spacingTop=4;spacingBottom=4;fontFamily=monospace;" vertex="1" parent="1">
+          <mxGeometry x="830" y="155" width="160" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow A: Box 4 — Hub VM -->
+        <mxCell id="fa-4" value="&lt;b&gt;Hub VM&lt;/b&gt;&lt;br&gt;vm-hub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;strokeWidth=2;fontSize=11;fontColor=#0D47A1;arcSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="100" width="220" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-4-ip" value="&lt;font style=&quot;font-size:10px;&quot;&gt;&lt;b&gt;src:&lt;/b&gt; 172.16.1.3&lt;br&gt;&lt;b&gt;dst:&lt;/b&gt; 10.0.0.2&lt;br&gt;&lt;b&gt;port:&lt;/b&gt; 80&lt;/font&gt;" style="text;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;rounded=1;strokeColor=#DADCE0;spacingLeft=6;spacingRight=6;spacingTop=4;spacingBottom=4;fontFamily=monospace;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="155" width="180" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow A arrows -->
+        <mxCell id="fa-a1" value="" style="endArrow=classic;strokeColor=#2E7D32;strokeWidth=3;" edge="1" parent="1" source="fa-1" target="fa-2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-a1-label" value="①" style="edgeLabel;fontSize=14;fontColor=#2E7D32;fontStyle=1;" connectable="0" vertex="1" parent="fa-a1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-a2" value="" style="endArrow=classic;strokeColor=#2E7D32;strokeWidth=3;" edge="1" parent="1" source="fa-2" target="fa-3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-a2-label" value="②" style="edgeLabel;fontSize=14;fontColor=#2E7D32;fontStyle=1;" connectable="0" vertex="1" parent="fa-a2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-a3" value="" style="endArrow=classic;strokeColor=#2E7D32;strokeWidth=3;" edge="1" parent="1" source="fa-3" target="fa-4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fa-a3-label" value="③" style="edgeLabel;fontSize=14;fontColor=#2E7D32;fontStyle=1;" connectable="0" vertex="1" parent="fa-a3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== FLOW B: HUB → SPOKE (ILB) ==================== -->
+        <mxCell id="flow-b-title" value="Flow B — Hub → Spoke (Internal Load Balancer)" style="text;html=1;fontSize=16;fontStyle=1;align=left;fontColor=#0D47A1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="320" width="500" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow-b-desc" value="Hub VM reaches Cloud Run service in spoke via HA VPN + ILB with serverless NEG" style="text;html=1;fontSize=11;fontColor=#5F6368;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="348" width="550" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow B: hub VPC boundary -->
+        <mxCell id="fb-hub-bg" value="" style="rounded=1;fillColor=none;strokeColor=#4285F4;strokeWidth=1;dashed=1;dashPattern=5 5;" vertex="1" parent="1">
+          <mxGeometry x="25" y="380" width="260" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-hub-label" value="hub VPC" style="text;html=1;fontSize=9;fontColor=#4285F4;fontStyle=2;align=left;" vertex="1" parent="1">
+          <mxGeometry x="30" y="381" width="60" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow B: spoke VPC boundary -->
+        <mxCell id="fb-spoke-bg" value="" style="rounded=1;fillColor=none;strokeColor=#4285F4;strokeWidth=1;dashed=1;dashPattern=5 5;" vertex="1" parent="1">
+          <mxGeometry x="575" y="380" width="820" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-spoke-label" value="spoke-1 VPC" style="text;html=1;fontSize=9;fontColor=#4285F4;fontStyle=2;align=left;" vertex="1" parent="1">
+          <mxGeometry x="580" y="381" width="80" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow B: Box 1 — Hub VM -->
+        <mxCell id="fb-1" value="&lt;b&gt;Hub VM&lt;/b&gt;&lt;br&gt;vm-hub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;strokeWidth=2;fontSize=11;fontColor=#0D47A1;arcSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="400" width="220" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-1-ip" value="&lt;font style=&quot;font-size:10px;&quot;&gt;&lt;b&gt;src:&lt;/b&gt; 10.0.0.2&lt;br&gt;&lt;b&gt;dst:&lt;/b&gt; 10.1.0.2&lt;br&gt;&lt;b&gt;port:&lt;/b&gt; 80&lt;/font&gt;" style="text;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;rounded=1;strokeColor=#DADCE0;spacingLeft=6;spacingRight=6;spacingTop=4;spacingBottom=4;fontFamily=monospace;" vertex="1" parent="1">
+          <mxGeometry x="60" y="455" width="180" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow B: Box 2 — HA VPN Tunnel -->
+        <mxCell id="fb-2" value="&lt;b&gt;HA VPN Tunnel&lt;/b&gt;&lt;br&gt;hub → spoke-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;strokeWidth=2;fontSize=11;fontColor=#4A148C;arcSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="370" y="400" width="200" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-2-ip" value="&lt;font style=&quot;font-size:10px;&quot;&gt;&lt;b&gt;src:&lt;/b&gt; 10.0.0.2&lt;br&gt;&lt;b&gt;dst:&lt;/b&gt; 10.1.0.2&lt;br&gt;(IPsec encrypted)&lt;/font&gt;" style="text;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;rounded=1;strokeColor=#DADCE0;spacingLeft=6;spacingRight=6;spacingTop=4;spacingBottom=4;fontFamily=monospace;" vertex="1" parent="1">
+          <mxGeometry x="390" y="455" width="160" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow B: Box 3 — ILB -->
+        <mxCell id="fb-3" value="&lt;b&gt;Internal Load Balancer&lt;/b&gt;&lt;br&gt;ilb-spoke-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C62828;strokeWidth=2;fontSize=11;fontColor=#B71C1C;arcSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="590" y="400" width="230" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-3-ip" value="&lt;font style=&quot;font-size:10px;&quot;&gt;&lt;b&gt;dst:&lt;/b&gt; 10.1.0.2:80&lt;br&gt;→ URL map → serverless NEG&lt;br&gt;→ Envoy proxy (241.0.0.x)&lt;/font&gt;" style="text;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;rounded=1;strokeColor=#DADCE0;spacingLeft=6;spacingRight=6;spacingTop=4;spacingBottom=4;fontFamily=monospace;" vertex="1" parent="1">
+          <mxGeometry x="600" y="455" width="210" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow B: Box 4 — Envoy Proxy -->
+        <mxCell id="fb-4" value="&lt;b&gt;Envoy Proxy&lt;/b&gt;&lt;br&gt;proxy-only subnet" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F9FA;strokeColor=#DADCE0;strokeWidth=2;fontSize=11;fontColor=#5F6368;arcSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="930" y="400" width="200" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-4-ip" value="&lt;font style=&quot;font-size:10px;&quot;&gt;&lt;b&gt;src:&lt;/b&gt; 241.0.0.x&lt;br&gt;&lt;b&gt;dst:&lt;/b&gt; Cloud Run (internal)&lt;br&gt;proxy → serverless NEG&lt;/font&gt;" style="text;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;rounded=1;strokeColor=#DADCE0;spacingLeft=6;spacingRight=6;spacingTop=4;spacingBottom=4;fontFamily=monospace;" vertex="1" parent="1">
+          <mxGeometry x="940" y="455" width="180" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow B: Box 5 — Cloud Run Service -->
+        <mxCell id="fb-5" value="&lt;b&gt;Cloud Run Service&lt;/b&gt;&lt;br&gt;cr-spoke-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;strokeWidth=2;fontSize=11;fontColor=#1B5E20;arcSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="400" width="160" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-5-ip" value="&lt;font style=&quot;font-size:10px;&quot;&gt;via serverless NEG&lt;br&gt;on 240.x.x.x&lt;/font&gt;" style="text;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;rounded=1;strokeColor=#DADCE0;spacingLeft=6;spacingRight=6;spacingTop=4;spacingBottom=4;fontFamily=monospace;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="455" width="140" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow B arrows -->
+        <mxCell id="fb-a1" value="" style="endArrow=classic;strokeColor=#1565C0;strokeWidth=3;" edge="1" parent="1" source="fb-1" target="fb-2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-a1-label" value="①" style="edgeLabel;fontSize=14;fontColor=#1565C0;fontStyle=1;" connectable="0" vertex="1" parent="fb-a1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-a2" value="" style="endArrow=classic;strokeColor=#1565C0;strokeWidth=3;" edge="1" parent="1" source="fb-2" target="fb-3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-a2-label" value="②" style="edgeLabel;fontSize=14;fontColor=#1565C0;fontStyle=1;" connectable="0" vertex="1" parent="fb-a2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-a3" value="" style="endArrow=classic;strokeColor=#1565C0;strokeWidth=3;" edge="1" parent="1" source="fb-3" target="fb-4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-a3-label" value="③" style="edgeLabel;fontSize=14;fontColor=#1565C0;fontStyle=1;" connectable="0" vertex="1" parent="fb-a3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-a4" value="" style="endArrow=classic;strokeColor=#1565C0;strokeWidth=3;" edge="1" parent="1" source="fb-4" target="fb-5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fb-a4-label" value="④" style="edgeLabel;fontSize=14;fontColor=#1565C0;fontStyle=1;" connectable="0" vertex="1" parent="fb-a4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== KEY INSIGHT ==================== -->
+        <mxCell id="insight" value="Key Insight: The overlapping 240.0.0.0/8 addresses are never routed across VPCs.&lt;br&gt;Flow A uses Hybrid NAT to translate them to unique 172.16.x.0/24 IPs before crossing the VPN.&lt;br&gt;Flow B uses an ILB on a routable /28 subnet — the Envoy proxy (on 241.0.0.0/26) and serverless NEG handle the last hop to Cloud Run internally." style="text;html=1;fontSize=11;fontColor=#3C4043;align=left;verticalAlign=top;fillColor=#E8F0FE;rounded=1;strokeColor=#4285F4;spacingLeft=10;spacingRight=10;spacingTop=8;spacingBottom=8;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="40" y="620" width="700" height="60" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
