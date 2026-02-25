@@ -2,8 +2,9 @@
 #
 # teardown.sh — Destroy all infrastructure (idempotent)
 #
-# Tears down connectivity (ILB, NAT, VPN) then base infra (Cloud Run, VM,
-# subnets, VPCs, Artifact Registry) and finally the service account.
+# Tears down Cloud Run first (to release VPC address reservations), then
+# connectivity (ILB, NAT, VPN), then base infra (VM, subnets, VPCs,
+# Artifact Registry) and finally the service account.
 #
 # Safe to re-run: skips resources that don't exist.
 #
@@ -27,9 +28,51 @@ resource_exists() {
 }
 
 # ============================================================
-# Step 1: Delete ILB resources (per spoke)
+# Step 1: Delete Cloud Run services and jobs
 # ============================================================
-echo "--- Step 1: Delete ILB resources ---"
+# Delete these FIRST — Direct VPC egress holds address reservations in the
+# overlap subnets. Deleting early gives GCP time to release them before we
+# attempt to delete the subnets.
+echo "--- Step 1: Delete Cloud Run services and jobs ---"
+for spoke_num in 1 2; do
+  spoke="spoke-${spoke_num}"
+
+  service="cr-${spoke}"
+  if resource_exists gcloud run services describe "${service}" \
+      --region="${REGION}" --project="${PROJECT_ID}"; then
+    gcloud run services delete "${service}" \
+      --region="${REGION}" --project="${PROJECT_ID}" --quiet
+    echo "Service '${service}' deleted."
+  fi
+
+  job="job-${spoke}"
+  if gcloud run jobs describe "${job}" \
+      --region="${REGION}" --project="${PROJECT_ID}" &>/dev/null; then
+    gcloud run jobs delete "${job}" \
+      --region="${REGION}" --project="${PROJECT_ID}" --quiet
+    echo "Job '${job}' deleted."
+  fi
+done
+
+# ============================================================
+# Step 2: Delete Compute VM
+# ============================================================
+echo ""
+echo "--- Step 2: Delete Compute VM ---"
+if resource_exists gcloud compute instances describe "vm-hub" \
+    --zone="${ZONE}" --project="${PROJECT_ID}"; then
+  gcloud compute instances delete "vm-hub" \
+    --zone="${ZONE}" --project="${PROJECT_ID}" --quiet
+  echo "Instance 'vm-hub' deleted."
+else
+  echo "Instance 'vm-hub' does not exist, skipping."
+fi
+
+# ============================================================
+# Step 3: Delete ILB resources (per spoke)
+# ============================================================
+echo ""
+echo "--- Step 3: Delete ILB resources ---"
 for spoke_num in 1 2; do
   spoke="spoke-${spoke_num}"
 
@@ -80,10 +123,10 @@ for spoke_num in 1 2; do
 done
 
 # ============================================================
-# Step 2: Delete NAT gateways and their routers
+# Step 4: Delete NAT gateways and their routers
 # ============================================================
 echo ""
-echo "--- Step 2: Delete NAT gateways ---"
+echo "--- Step 4: Delete NAT gateways ---"
 
 # Spoke Hybrid NATs
 for spoke_num in 1 2; do
@@ -122,10 +165,10 @@ if resource_exists gcloud compute routers describe "nat-router-hub" \
 fi
 
 # ============================================================
-# Step 3: Delete VPN tunnels
+# Step 5: Delete VPN tunnels
 # ============================================================
 echo ""
-echo "--- Step 3: Delete VPN tunnels ---"
+echo "--- Step 5: Delete VPN tunnels ---"
 for spoke_num in 1 2; do
   spoke="spoke-${spoke_num}"
   for iface in 0 1; do
@@ -141,10 +184,10 @@ for spoke_num in 1 2; do
 done
 
 # ============================================================
-# Step 4: Delete VPN gateways
+# Step 6: Delete VPN gateways
 # ============================================================
 echo ""
-echo "--- Step 4: Delete VPN gateways ---"
+echo "--- Step 6: Delete VPN gateways ---"
 for gw in vpn-gw-hub-to-spoke-1 vpn-gw-hub-to-spoke-2 vpn-gw-spoke-1 vpn-gw-spoke-2; do
   if resource_exists gcloud compute vpn-gateways describe "${gw}" \
       --region="${REGION}" --project="${PROJECT_ID}"; then
@@ -155,55 +198,16 @@ for gw in vpn-gw-hub-to-spoke-1 vpn-gw-hub-to-spoke-2 vpn-gw-spoke-1 vpn-gw-spok
 done
 
 # ============================================================
-# Step 5: Delete VPN Cloud Routers
+# Step 7: Delete VPN Cloud Routers
 # ============================================================
 echo ""
-echo "--- Step 5: Delete VPN Cloud Routers ---"
+echo "--- Step 7: Delete VPN Cloud Routers ---"
 for router in vpn-router-hub vpn-router-spoke-1 vpn-router-spoke-2; do
   if resource_exists gcloud compute routers describe "${router}" \
       --region="${REGION}" --project="${PROJECT_ID}"; then
     gcloud compute routers delete "${router}" \
       --region="${REGION}" --project="${PROJECT_ID}" --quiet
     echo "Cloud Router '${router}' deleted."
-  fi
-done
-
-# ============================================================
-# Step 6: Delete Compute VM
-# ============================================================
-echo ""
-echo "--- Step 6: Delete Compute VM ---"
-if resource_exists gcloud compute instances describe "vm-hub" \
-    --zone="${ZONE}" --project="${PROJECT_ID}"; then
-  gcloud compute instances delete "vm-hub" \
-    --zone="${ZONE}" --project="${PROJECT_ID}" --quiet
-  echo "Instance 'vm-hub' deleted."
-else
-  echo "Instance 'vm-hub' does not exist, skipping."
-fi
-
-# ============================================================
-# Step 7: Delete Cloud Run services and jobs
-# ============================================================
-echo ""
-echo "--- Step 7: Delete Cloud Run services and jobs ---"
-for spoke_num in 1 2; do
-  spoke="spoke-${spoke_num}"
-
-  service="cr-${spoke}"
-  if resource_exists gcloud run services describe "${service}" \
-      --region="${REGION}" --project="${PROJECT_ID}"; then
-    gcloud run services delete "${service}" \
-      --region="${REGION}" --project="${PROJECT_ID}" --quiet
-    echo "Service '${service}' deleted."
-  fi
-
-  job="job-${spoke}"
-  if gcloud run jobs describe "${job}" \
-      --region="${REGION}" --project="${PROJECT_ID}" &>/dev/null; then
-    gcloud run jobs delete "${job}" \
-      --region="${REGION}" --project="${PROJECT_ID}" --quiet
-    echo "Job '${job}' deleted."
   fi
 done
 
@@ -225,6 +229,8 @@ done
 # ============================================================
 # Step 9: Delete subnets
 # ============================================================
+# Cloud Run Direct VPC egress address reservations can take a few minutes to
+# release after the service is deleted. Retry with backoff if still in use.
 echo ""
 echo "--- Step 9: Delete subnets ---"
 SUBNETS=(
@@ -234,12 +240,34 @@ SUBNETS=(
   proxy-spoke-1 proxy-spoke-2
   pnat-spoke-1 pnat-spoke-2
 )
+
+delete_subnet_with_retry() {
+  local subnet="$1"
+  local max_attempts=6
+  local wait_secs=10
+
+  for attempt in $(seq 1 "${max_attempts}"); do
+    if gcloud compute networks subnets delete "${subnet}" \
+        --region="${REGION}" --project="${PROJECT_ID}" --quiet 2>/dev/null; then
+      echo "Subnet '${subnet}' deleted."
+      return 0
+    fi
+
+    if [[ ${attempt} -lt ${max_attempts} ]]; then
+      echo "  Subnet '${subnet}' still in use, retrying in ${wait_secs}s... (attempt ${attempt}/${max_attempts})"
+      sleep "${wait_secs}"
+      wait_secs=$((wait_secs * 2))
+    else
+      echo "  ERROR: Could not delete subnet '${subnet}' after ${max_attempts} attempts."
+      return 1
+    fi
+  done
+}
+
 for subnet in "${SUBNETS[@]}"; do
   if resource_exists gcloud compute networks subnets describe "${subnet}" \
       --region="${REGION}" --project="${PROJECT_ID}"; then
-    gcloud compute networks subnets delete "${subnet}" \
-      --region="${REGION}" --project="${PROJECT_ID}" --quiet
-    echo "Subnet '${subnet}' deleted."
+    delete_subnet_with_retry "${subnet}"
   else
     echo "Subnet '${subnet}' does not exist, skipping."
   fi
