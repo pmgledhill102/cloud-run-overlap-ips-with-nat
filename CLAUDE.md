@@ -25,7 +25,7 @@ See `docs/architecture.md` for full details.
 - **Spokes**: Each has overlapping `240.0.0.0/8` (Cloud Run egress), routable `/28` (ILB), proxy-only `/26`, and PRIVATE_NAT `/24`
 - **HA VPN**: 8 tunnels total (4 per spoke), BGP route exchange (non-overlapping only)
 - **Hybrid NAT**: On each spoke, SNATs `240.x` → `172.16.x` for spoke→hub traffic
-- **ILB**: Serverless NEG on each spoke for hub→spoke traffic
+- **ILB**: HTTPS (self-signed cert, port 443) with serverless NEG on each spoke for hub→spoke traffic
 - **Cloud Run**: 2 services (`cr-spoke-1`, `cr-spoke-2`) + 2 jobs (`job-spoke-1`, `job-spoke-2`)
 
 ## IAM Roles (bound by setup-iam.sh)

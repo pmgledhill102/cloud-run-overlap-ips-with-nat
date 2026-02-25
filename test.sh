@@ -66,7 +66,7 @@ for spoke_num in 1 2; do
     --zone="${ZONE}" \
     --tunnel-through-iap \
     --project="${PROJECT_ID}" \
-    --command="curl -s --max-time 10 http://${ip}/" 2>&1 || echo "  FAILED: curl ${ip}"
+    --command="curl -sk --max-time 10 https://${ip}/" 2>&1 || echo "  FAILED: curl ${ip}"
   echo ""
 done
 

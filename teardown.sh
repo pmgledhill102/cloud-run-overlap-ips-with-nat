@@ -85,13 +85,22 @@ for spoke_num in 1 2; do
     echo "Forwarding rule '${fr}' deleted."
   fi
 
-  # Target HTTP proxy
+  # Target HTTPS proxy
   proxy="proxy-${spoke}"
-  if resource_exists gcloud compute target-http-proxies describe "${proxy}" \
+  if resource_exists gcloud compute target-https-proxies describe "${proxy}" \
       --region="${REGION}" --project="${PROJECT_ID}"; then
-    gcloud compute target-http-proxies delete "${proxy}" \
+    gcloud compute target-https-proxies delete "${proxy}" \
       --region="${REGION}" --project="${PROJECT_ID}" --quiet
-    echo "Target HTTP proxy '${proxy}' deleted."
+    echo "Target HTTPS proxy '${proxy}' deleted."
+  fi
+
+  # SSL certificate
+  cert="ssl-${spoke}"
+  if resource_exists gcloud compute ssl-certificates describe "${cert}" \
+      --region="${REGION}" --project="${PROJECT_ID}"; then
+    gcloud compute ssl-certificates delete "${cert}" \
+      --region="${REGION}" --project="${PROJECT_ID}" --quiet
+    echo "SSL certificate '${cert}' deleted."
   fi
 
   # URL map
