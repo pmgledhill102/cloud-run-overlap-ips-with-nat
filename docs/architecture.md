@@ -79,15 +79,16 @@ The hub has a Public NAT gateway (`public-nat-hub`) on a dedicated Cloud Router 
 
 ## ILB Configuration (per spoke)
 
-Each spoke exposes its Cloud Run service via an Internal Load Balancer:
+Each spoke exposes its Cloud Run service via an Internal Load Balancer with TLS termination:
 
-1. **Serverless NEG** (`neg-spoke-{n}`) → points at `cr-spoke-{n}`
-2. **Backend service** (`bs-spoke-{n}`) → regional, INTERNAL_MANAGED, HTTP
-3. **URL map** (`urlmap-spoke-{n}`) → default backend
-4. **Target HTTP proxy** (`proxy-spoke-{n}`)
-5. **Forwarding rule** (`ilb-spoke-{n}`) → on `routable-spoke-{n}` subnet, port 80
+1. **Self-signed SSL certificate** (`ssl-spoke-{n}`) → regional, auto-generated
+2. **Serverless NEG** (`neg-spoke-{n}`) → points at `cr-spoke-{n}`
+3. **Backend service** (`bs-spoke-{n}`) → regional, INTERNAL_MANAGED
+4. **URL map** (`urlmap-spoke-{n}`) → default backend
+5. **Target HTTPS proxy** (`proxy-spoke-{n}`) → TLS termination with self-signed cert
+6. **Forwarding rule** (`ilb-spoke-{n}`) → on `routable-spoke-{n}` subnet, port 443
 
-The ILB's IP is on the routable `/28` subnet, which is advertised via BGP to the hub. The proxy-only subnet provides Envoy proxy capacity.
+The ILB terminates TLS at the Envoy proxy; the connection to Cloud Run via the serverless NEG is handled internally by GCP. The ILB's IP is on the routable `/28` subnet, which is advertised via BGP to the hub. The proxy-only subnet provides Envoy proxy capacity.
 
 ## Compute & Cloud Run
 

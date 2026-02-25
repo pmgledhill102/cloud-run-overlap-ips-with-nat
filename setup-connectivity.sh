@@ -344,6 +344,28 @@ fi
 echo ""
 echo "--- Step 6: Configure ILB on spokes ---"
 
+# Generate and upload self-signed TLS certificates (one per spoke)
+for spoke_num in 1 2; do
+  cert_name="ssl-spoke-${spoke_num}"
+  if resource_exists gcloud compute ssl-certificates describe "${cert_name}" \
+      --region="${REGION}" --project="${PROJECT_ID}"; then
+    echo "  SSL certificate '${cert_name}' already exists, skipping."
+  else
+    openssl req -x509 -newkey rsa:2048 -nodes \
+      -keyout "/tmp/key-spoke-${spoke_num}.pem" \
+      -out "/tmp/cert-spoke-${spoke_num}.pem" \
+      -days 365 \
+      -subj "/CN=ilb-spoke-${spoke_num}.internal" 2>/dev/null
+    gcloud compute ssl-certificates create "${cert_name}" \
+      --certificate="/tmp/cert-spoke-${spoke_num}.pem" \
+      --private-key="/tmp/key-spoke-${spoke_num}.pem" \
+      --region="${REGION}" \
+      --project="${PROJECT_ID}"
+    rm -f "/tmp/key-spoke-${spoke_num}.pem" "/tmp/cert-spoke-${spoke_num}.pem"
+    echo "  SSL certificate '${cert_name}' created."
+  fi
+done
+
 for spoke_num in 1 2; do
   spoke="spoke-${spoke_num}"
   service="cr-${spoke}"
@@ -399,17 +421,18 @@ for spoke_num in 1 2; do
     echo "  URL map '${urlmap}' created."
   fi
 
-  # Target HTTP proxy
+  # Target HTTPS proxy
   proxy="proxy-${spoke}"
-  if resource_exists gcloud compute target-http-proxies describe "${proxy}" \
+  if resource_exists gcloud compute target-https-proxies describe "${proxy}" \
       --region="${REGION}" --project="${PROJECT_ID}"; then
-    echo "  Target HTTP proxy '${proxy}' already exists, skipping."
+    echo "  Target HTTPS proxy '${proxy}' already exists, skipping."
   else
-    gcloud compute target-http-proxies create "${proxy}" \
-      --region="${REGION}" \
+    gcloud compute target-https-proxies create "${proxy}" \
+      --ssl-certificates="ssl-${spoke}" \
       --url-map="${urlmap}" \
+      --region="${REGION}" \
       --project="${PROJECT_ID}"
-    echo "  Target HTTP proxy '${proxy}' created."
+    echo "  Target HTTPS proxy '${proxy}' created."
   fi
 
   # Forwarding rule
@@ -423,9 +446,9 @@ for spoke_num in 1 2; do
       --load-balancing-scheme=INTERNAL_MANAGED \
       --network="${spoke}" \
       --subnet="routable-${spoke}" \
-      --target-http-proxy="${proxy}" \
-      --target-http-proxy-region="${REGION}" \
-      --ports=80 \
+      --target-https-proxy="${proxy}" \
+      --target-https-proxy-region="${REGION}" \
+      --ports=443 \
       --project="${PROJECT_ID}"
     echo "  Forwarding rule '${fr}' created."
   fi

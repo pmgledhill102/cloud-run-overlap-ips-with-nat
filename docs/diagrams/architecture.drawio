@@ -39,7 +39,7 @@
         <mxCell id="ilb-s1" value="ilb-spoke-1" style="shape=mxgraph.gcp2.cloud_load_balancing;fillColor=#F8BBD0;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="sub-routable-s1">
           <mxGeometry x="141" y="28" width="68" height="53" as="geometry"/>
         </mxCell>
-        <mxCell id="ilb-s1-desc" value="Internal Load Balancer" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="sub-routable-s1">
+        <mxCell id="ilb-s1-desc" value="Internal Load Balancer&#xa;HTTPS :443" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="sub-routable-s1">
           <mxGeometry x="115" y="92" width="120" height="14" as="geometry"/>
         </mxCell>
 
@@ -141,7 +141,7 @@
         <mxCell id="ilb-s2" value="ilb-spoke-2" style="shape=mxgraph.gcp2.cloud_load_balancing;fillColor=#F8BBD0;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="sub-routable-s2">
           <mxGeometry x="141" y="28" width="68" height="53" as="geometry"/>
         </mxCell>
-        <mxCell id="ilb-s2-desc" value="Internal Load Balancer" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="sub-routable-s2">
+        <mxCell id="ilb-s2-desc" value="Internal Load Balancer&#xa;HTTPS :443" style="text;fontSize=8;fontColor=#80868B;align=center;" vertex="1" parent="sub-routable-s2">
           <mxGeometry x="115" y="92" width="120" height="14" as="geometry"/>
         </mxCell>
 

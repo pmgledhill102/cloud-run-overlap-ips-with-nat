@@ -85,7 +85,7 @@
         <mxCell id="flow-b-title" value="Flow B — Hub → Spoke (Internal Load Balancer)" style="text;html=1;fontSize=16;fontStyle=1;align=left;fontColor=#0D47A1;" vertex="1" parent="1">
           <mxGeometry x="40" y="320" width="500" height="30" as="geometry"/>
         </mxCell>
-        <mxCell id="flow-b-desc" value="Hub VM reaches Cloud Run service in spoke via HA VPN + ILB with serverless NEG" style="text;html=1;fontSize=11;fontColor=#5F6368;align=left;" vertex="1" parent="1">
+        <mxCell id="flow-b-desc" value="Hub VM reaches Cloud Run service in spoke via HA VPN + ILB (HTTPS) with serverless NEG" style="text;html=1;fontSize=11;fontColor=#5F6368;align=left;" vertex="1" parent="1">
           <mxGeometry x="40" y="348" width="550" height="20" as="geometry"/>
         </mxCell>
 
@@ -109,7 +109,7 @@
         <mxCell id="fb-1" value="&lt;b&gt;Hub VM&lt;/b&gt;&lt;br&gt;vm-hub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;strokeWidth=2;fontSize=11;fontColor=#0D47A1;arcSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="1">
           <mxGeometry x="40" y="400" width="220" height="160" as="geometry"/>
         </mxCell>
-        <mxCell id="fb-1-ip" value="&lt;font style=&quot;font-size:10px;&quot;&gt;&lt;b&gt;src:&lt;/b&gt; 10.0.0.2&lt;br&gt;&lt;b&gt;dst:&lt;/b&gt; 10.1.0.2&lt;br&gt;&lt;b&gt;port:&lt;/b&gt; 80&lt;/font&gt;" style="text;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;rounded=1;strokeColor=#DADCE0;spacingLeft=6;spacingRight=6;spacingTop=4;spacingBottom=4;fontFamily=monospace;" vertex="1" parent="1">
+        <mxCell id="fb-1-ip" value="&lt;font style=&quot;font-size:10px;&quot;&gt;&lt;b&gt;src:&lt;/b&gt; 10.0.0.2&lt;br&gt;&lt;b&gt;dst:&lt;/b&gt; 10.1.0.2&lt;br&gt;&lt;b&gt;port:&lt;/b&gt; 443&lt;/font&gt;" style="text;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;rounded=1;strokeColor=#DADCE0;spacingLeft=6;spacingRight=6;spacingTop=4;spacingBottom=4;fontFamily=monospace;" vertex="1" parent="1">
           <mxGeometry x="60" y="455" width="180" height="55" as="geometry"/>
         </mxCell>
 
@@ -122,10 +122,10 @@
         </mxCell>
 
         <!-- Flow B: Box 3 — ILB -->
-        <mxCell id="fb-3" value="&lt;b&gt;Internal Load Balancer&lt;/b&gt;&lt;br&gt;ilb-spoke-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C62828;strokeWidth=2;fontSize=11;fontColor=#B71C1C;arcSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="1">
+        <mxCell id="fb-3" value="&lt;b&gt;Internal Load Balancer&lt;/b&gt;&lt;br&gt;ilb-spoke-1 (HTTPS :443)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C62828;strokeWidth=2;fontSize=11;fontColor=#B71C1C;arcSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="1">
           <mxGeometry x="590" y="400" width="230" height="160" as="geometry"/>
         </mxCell>
-        <mxCell id="fb-3-ip" value="&lt;font style=&quot;font-size:10px;&quot;&gt;&lt;b&gt;dst:&lt;/b&gt; 10.1.0.2:80&lt;br&gt;→ URL map → serverless NEG&lt;br&gt;→ Envoy proxy (241.0.0.x)&lt;/font&gt;" style="text;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;rounded=1;strokeColor=#DADCE0;spacingLeft=6;spacingRight=6;spacingTop=4;spacingBottom=4;fontFamily=monospace;" vertex="1" parent="1">
+        <mxCell id="fb-3-ip" value="&lt;font style=&quot;font-size:10px;&quot;&gt;&lt;b&gt;dst:&lt;/b&gt; 10.1.0.2:443&lt;br&gt;→ TLS termination → URL map&lt;br&gt;→ Envoy proxy (241.0.0.x)&lt;/font&gt;" style="text;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;rounded=1;strokeColor=#DADCE0;spacingLeft=6;spacingRight=6;spacingTop=4;spacingBottom=4;fontFamily=monospace;" vertex="1" parent="1">
           <mxGeometry x="600" y="455" width="210" height="55" as="geometry"/>
         </mxCell>
 
