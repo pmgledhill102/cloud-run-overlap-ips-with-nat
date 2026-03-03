@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "docs/diagrams/*.drawio"
+      - "**/diagrams/*.drawio"
 
 permissions:
   contents: write
@@ -12,28 +12,45 @@ permissions:
 jobs:
   export:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        path:
+          - direct-vpc-egress/docs/diagrams
+          - vpc-connector/docs/diagrams
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Check for drawio files
+        id: check
+        run: |
+          if ls ${{ matrix.path }}/*.drawio 1>/dev/null 2>&1; then
+            echo "has_files=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Export drawio files to SVG
+        if: steps.check.outputs.has_files == 'true'
         uses: rlespinasse/drawio-export-action@v2
         with:
-          path: docs/diagrams
+          path: ${{ matrix.path }}
           format: svg
           transparent: false
 
       - name: Rename exports from .drawio.svg to .svg
+        if: steps.check.outputs.has_files == 'true'
         run: |
-          for f in docs/diagrams/*.drawio.svg; do
+          for f in ${{ matrix.path }}/*.drawio.svg; do
             [ -f "$f" ] && mv "$f" "${f%.drawio.svg}.svg"
           done
 
       - name: Commit updated SVGs
+        if: steps.check.outputs.has_files == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/diagrams/*.svg
+          git add ${{ matrix.path }}/*.svg
           git diff --cached --quiet || git commit -m "Auto-export drawio diagrams to SVG"
           git push

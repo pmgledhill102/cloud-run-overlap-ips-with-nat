@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 #
-# setup-connectivity.sh — Set up HA VPN, BGP, Hybrid NAT, Public NAT, and ILB (idempotent)
+# vpc-connector/setup-connectivity.sh — Set up HA VPN, BGP, Public NAT, and ILB (idempotent)
 #
-# Creates cross-VPC connectivity between hub and both spokes:
-#   - HA VPN tunnels with BGP (hub ↔ spoke-1, hub ↔ spoke-2)
-#   - Hybrid NAT on each spoke (spoke→hub traffic)
+# Creates cross-VPC connectivity between hub and both connector spokes:
+#   - HA VPN tunnels with BGP (hub ↔ spoke-c1, hub ↔ spoke-c2)
 #   - Public NAT on hub (internet access for VM)
 #   - ILB with serverless NEG on each spoke (hub→spoke traffic)
+#
+# Key difference from Direct VPC Egress: NO Hybrid NAT needed.
+# Connector VM IPs are already unique and routable.
 #
 # Run this AFTER setup-infra.sh has completed.
 # Wait ~60s after completion for BGP to converge before testing.
@@ -19,7 +21,7 @@ PROJECT_ID="${PROJECT_ID:-sb-paul-g-workshop}"
 REGION="europe-north2"
 HUB_ASN=65000
 
-echo "=== Setup Connectivity for project: ${PROJECT_ID} ==="
+echo "=== Setup Connectivity (VPC Connector) for project: ${PROJECT_ID} ==="
 echo "Region: ${REGION}"
 echo ""
 
@@ -30,7 +32,7 @@ resource_exists() {
 }
 
 # ============================================================
-# Step 1: Hub VPN Cloud Router (shared across both spoke connections)
+# Step 1: Hub VPN Cloud Router (shared, idempotent)
 # ============================================================
 echo "--- Step 1: Hub VPN Cloud Router ---"
 if resource_exists gcloud compute routers describe "vpn-router-hub" \
@@ -49,8 +51,8 @@ fi
 # Step 2: Per-spoke VPN setup
 # ============================================================
 for spoke_num in 1 2; do
-  spoke="spoke-${spoke_num}"
-  spoke_asn=$((65000 + spoke_num))  # 65001, 65002
+  spoke="spoke-c${spoke_num}"
+  spoke_asn=$((65002 + spoke_num))  # 65003, 65004
 
   echo ""
   echo "=========================================="
@@ -142,14 +144,15 @@ for spoke_num in 1 2; do
   echo ""
   echo "  Configuring BGP sessions for hub ↔ ${spoke}..."
 
-  # BGP link-local IPs — unique per spoke to avoid conflicts on the hub router
-  #   spoke-1 iface 0: hub=169.254.1.1 ↔ spoke=169.254.1.2
-  #   spoke-1 iface 1: hub=169.254.1.5 ↔ spoke=169.254.1.6
-  #   spoke-2 iface 0: hub=169.254.2.1 ↔ spoke=169.254.2.2
-  #   spoke-2 iface 1: hub=169.254.2.5 ↔ spoke=169.254.2.6
+  # BGP link-local IPs — offset by 2 from direct-vpc-egress spokes to avoid conflicts
+  #   spoke-c1 iface 0: hub=169.254.3.1 ↔ spoke=169.254.3.2
+  #   spoke-c1 iface 1: hub=169.254.3.5 ↔ spoke=169.254.3.6
+  #   spoke-c2 iface 0: hub=169.254.4.1 ↔ spoke=169.254.4.2
+  #   spoke-c2 iface 1: hub=169.254.4.5 ↔ spoke=169.254.4.6
+  bgp_octet=$((spoke_num + 2))  # 3, 4
   for iface in 0 1; do
-    hub_ip="169.254.${spoke_num}.$((iface * 4 + 1))"
-    spoke_ip="169.254.${spoke_num}.$((iface * 4 + 2))"
+    hub_ip="169.254.${bgp_octet}.$((iface * 4 + 1))"
+    spoke_ip="169.254.${bgp_octet}.$((iface * 4 + 2))"
 
     # Hub side
     hub_iface_name="vpn-${spoke}-if${iface}"
@@ -228,6 +231,8 @@ echo ""
 echo "--- Step 3: Configure route advertisements ---"
 
 # Hub: advertise compute subnet
+# NOTE: If both approaches coexist, the hub router may already have advertisements
+# from the Direct VPC Egress approach. This update is additive.
 echo "Setting vpn-router-hub to advertise: 10.0.0.0/28"
 gcloud compute routers update "vpn-router-hub" \
   --region="${REGION}" \
@@ -237,11 +242,11 @@ gcloud compute routers update "vpn-router-hub" \
   --quiet
 echo "vpn-router-hub route advertisements configured."
 
-# Each spoke: advertise routable, proxy-only, and pnat subnets
+# Each spoke: advertise connector + routable subnets (no PNAT — not needed!)
 for spoke_num in 1 2; do
-  spoke="spoke-${spoke_num}"
+  spoke="spoke-c${spoke_num}"
   router="vpn-router-${spoke}"
-  ranges="10.${spoke_num}.0.0/28,172.16.${spoke_num}.0/24"
+  ranges="10.10.${spoke_num}.0/28,10.1${spoke_num}.0.0/28"
   echo "Setting ${router} to advertise: ${ranges}"
   gcloud compute routers update "${router}" \
     --region="${REGION}" \
@@ -253,66 +258,10 @@ for spoke_num in 1 2; do
 done
 
 # ============================================================
-# Step 4: Hybrid NAT on each spoke
+# Step 4: Public NAT on hub (internet access for VM) — NO Hybrid NAT needed!
 # ============================================================
 echo ""
-echo "--- Step 4: Configure Hybrid NAT on spokes ---"
-
-for spoke_num in 1 2; do
-  spoke="spoke-${spoke_num}"
-  nat_router="nat-router-${spoke}"
-  nat_gw="hybrid-nat-${spoke}"
-  pnat_subnet="pnat-${spoke}"
-
-  # Dedicated Cloud Router for NAT
-  if resource_exists gcloud compute routers describe "${nat_router}" \
-      --region="${REGION}" --project="${PROJECT_ID}"; then
-    echo "Cloud Router '${nat_router}' already exists, skipping."
-  else
-    gcloud compute routers create "${nat_router}" \
-      --network="${spoke}" \
-      --region="${REGION}" \
-      --project="${PROJECT_ID}"
-    echo "Cloud Router '${nat_router}' created."
-  fi
-
-  # Hybrid NAT gateway
-  if gcloud compute routers nats describe "${nat_gw}" \
-      --router="${nat_router}" --region="${REGION}" --project="${PROJECT_ID}" &>/dev/null; then
-    echo "NAT gateway '${nat_gw}' already exists, skipping."
-  else
-    gcloud compute routers nats create "${nat_gw}" \
-      --router="${nat_router}" \
-      --type=PRIVATE \
-      --region="${REGION}" \
-      --nat-all-subnet-ip-ranges \
-      --endpoint-types=ENDPOINT_TYPE_VM \
-      --project="${PROJECT_ID}"
-    echo "NAT gateway '${nat_gw}' created."
-  fi
-
-  # NAT rule for hybrid next hops
-  if gcloud compute routers nats rules describe 100 \
-      --router="${nat_router}" --nat="${nat_gw}" \
-      --region="${REGION}" --project="${PROJECT_ID}" &>/dev/null; then
-    echo "NAT rule 100 on '${nat_gw}' already exists, skipping."
-  else
-    gcloud compute routers nats rules create 100 \
-      --router="${nat_router}" \
-      --region="${REGION}" \
-      --nat="${nat_gw}" \
-      --match='nexthop.is_hybrid' \
-      --source-nat-active-ranges="${pnat_subnet}" \
-      --project="${PROJECT_ID}"
-    echo "NAT rule 100 created on '${nat_gw}' (SNAT to 172.16.${spoke_num}.0/24)."
-  fi
-done
-
-# ============================================================
-# Step 5: Public NAT on hub (internet access for VM)
-# ============================================================
-echo ""
-echo "--- Step 5: Configure Public NAT on hub ---"
+echo "--- Step 4: Configure Public NAT on hub (NO Hybrid NAT needed) ---"
 
 if resource_exists gcloud compute routers describe "nat-router-hub" \
     --region="${REGION}" --project="${PROJECT_ID}"; then
@@ -339,35 +288,35 @@ else
 fi
 
 # ============================================================
-# Step 6: ILB with serverless NEG on each spoke (hub→spoke)
+# Step 5: ILB with serverless NEG on each spoke (hub→spoke)
 # ============================================================
 echo ""
-echo "--- Step 6: Configure ILB on spokes ---"
+echo "--- Step 5: Configure ILB on spokes ---"
 
 # Generate and upload self-signed TLS certificates (one per spoke)
 for spoke_num in 1 2; do
-  cert_name="ssl-spoke-${spoke_num}"
+  cert_name="ssl-spoke-c${spoke_num}"
   if resource_exists gcloud compute ssl-certificates describe "${cert_name}" \
       --region="${REGION}" --project="${PROJECT_ID}"; then
     echo "  SSL certificate '${cert_name}' already exists, skipping."
   else
     openssl req -x509 -newkey rsa:2048 -nodes \
-      -keyout "/tmp/key-spoke-${spoke_num}.pem" \
-      -out "/tmp/cert-spoke-${spoke_num}.pem" \
+      -keyout "/tmp/key-spoke-c${spoke_num}.pem" \
+      -out "/tmp/cert-spoke-c${spoke_num}.pem" \
       -days 365 \
-      -subj "/CN=ilb-spoke-${spoke_num}.internal" 2>/dev/null
+      -subj "/CN=ilb-spoke-c${spoke_num}.internal" 2>/dev/null
     gcloud compute ssl-certificates create "${cert_name}" \
-      --certificate="/tmp/cert-spoke-${spoke_num}.pem" \
-      --private-key="/tmp/key-spoke-${spoke_num}.pem" \
+      --certificate="/tmp/cert-spoke-c${spoke_num}.pem" \
+      --private-key="/tmp/key-spoke-c${spoke_num}.pem" \
       --region="${REGION}" \
       --project="${PROJECT_ID}"
-    rm -f "/tmp/key-spoke-${spoke_num}.pem" "/tmp/cert-spoke-${spoke_num}.pem"
+    rm -f "/tmp/key-spoke-c${spoke_num}.pem" "/tmp/cert-spoke-c${spoke_num}.pem"
     echo "  SSL certificate '${cert_name}' created."
   fi
 done
 
 for spoke_num in 1 2; do
-  spoke="spoke-${spoke_num}"
+  spoke="spoke-c${spoke_num}"
   service="cr-${spoke}"
 
   echo ""
@@ -458,28 +407,31 @@ done
 # Verification
 # ============================================================
 echo ""
-echo "=== Connectivity setup complete ==="
+echo "=== Connectivity setup complete (VPC Connector) ==="
 echo ""
 echo "--- VPN tunnel status ---"
 gcloud compute vpn-tunnels list \
-  --filter="region:${REGION}" --project="${PROJECT_ID}" \
+  --filter="region:${REGION} AND name~spoke-c" --project="${PROJECT_ID}" \
   --format="table(name,status,peerIp)"
 
 echo ""
 echo "--- BGP session status ---"
-for router in vpn-router-hub vpn-router-spoke-1 vpn-router-spoke-2; do
-  echo ""
-  echo "${router}:"
-  gcloud compute routers get-status "${router}" \
-    --region="${REGION}" --project="${PROJECT_ID}" \
-    --format="table(result.bgpPeerStatus[].name,result.bgpPeerStatus[].status,result.bgpPeerStatus[].numLearnedRoutes)" 2>/dev/null \
-    || echo "  (not ready yet — BGP may take a minute to converge)"
+for router in vpn-router-hub vpn-router-spoke-c1 vpn-router-spoke-c2; do
+  if resource_exists gcloud compute routers describe "${router}" \
+      --region="${REGION}" --project="${PROJECT_ID}"; then
+    echo ""
+    echo "${router}:"
+    gcloud compute routers get-status "${router}" \
+      --region="${REGION}" --project="${PROJECT_ID}" \
+      --format="table(result.bgpPeerStatus[].name,result.bgpPeerStatus[].status,result.bgpPeerStatus[].numLearnedRoutes)" 2>/dev/null \
+      || echo "  (not ready yet — BGP may take a minute to converge)"
+  fi
 done
 
 echo ""
 echo "--- ILB forwarding rules ---"
 for spoke_num in 1 2; do
-  fr="ilb-spoke-${spoke_num}"
+  fr="ilb-spoke-c${spoke_num}"
   ip="$(gcloud compute forwarding-rules describe "${fr}" \
     --region="${REGION}" --project="${PROJECT_ID}" \
     --format='get(IPAddress)' 2>/dev/null || echo 'unknown')"
