@@ -2,19 +2,31 @@
 
 ## What This Tests
 
-Google Cloud allows non-routable IP ranges (Class E: `240.0.0.0/4`) to be used in VPC subnets. This PoC answers two questions:
+Google Cloud allows non-routable IP ranges (Class E: `240.0.0.0/4`) in VPC subnets. This PoC demonstrates two approaches for enabling Cloud Run services to communicate bidirectionally with a central hub, even when spoke VPCs would otherwise have overlapping IP ranges.
 
-1. **Can Cloud Run services use overlapping non-routable IPs across separate VPCs, and still communicate with a central hub?** Yes — using Hybrid NAT to translate the overlapping source IPs into unique routable IPs before they cross HA VPN tunnels, and Internal Load Balancers (with serverless NEGs) for traffic in the reverse direction.
+### Approach 1: Direct VPC Egress
 
-2. **Can the ILB proxy-only subnet also use non-routable Class E addresses?** Yes — GCP accepts Class E ranges (e.g. `241.0.0.0/26`) for `REGIONAL_MANAGED_PROXY` subnets. Since these IPs are internal to the ILB's Envoy proxies and never leave the VPC, they can overlap across spokes and don't need to be advertised via BGP.
+Cloud Run deploys directly into a VPC subnet with overlapping Class E IPs. Hybrid NAT translates overlapping source IPs into unique routable IPs before crossing HA VPN tunnels.
+
+### Approach 2: VPC Serverless Access Connector
+
+Cloud Run connects through VPC Connector VMs that have unique, routable IPs. No overlapping subnets or Hybrid NAT needed — the connector itself acts as the NAT boundary.
+
+See [docs/comparison.md](docs/comparison.md) for a detailed side-by-side comparison.
 
 ## Architecture
 
-![Hub-Spoke Architecture](docs/diagrams/architecture.drawio.svg)
+### Direct VPC Egress
 
-![Traffic Flows](docs/diagrams/traffic-flows.drawio.svg)
+![Hub-Spoke Architecture](direct-vpc-egress/docs/diagrams/architecture.drawio.svg)
 
-See [docs/architecture.md](docs/architecture.md) for full details on subnets, BGP, and cost estimates.
+![Traffic Flows](direct-vpc-egress/docs/diagrams/traffic-flows.drawio.svg)
+
+See [direct-vpc-egress/docs/architecture.md](direct-vpc-egress/docs/architecture.md) for full details.
+
+### VPC Connector
+
+See [vpc-connector/docs/architecture.md](vpc-connector/docs/architecture.md) for full details.
 
 ## Quick Start
 
@@ -24,44 +36,75 @@ See [docs/architecture.md](docs/architecture.md) for full details on subnets, BG
 
 # 2. Impersonate the service account
 gcloud config set auth/impersonate_service_account cloud-run-nat-poc@PROJECT_ID.iam.gserviceaccount.com
-
-# 3. Create base infrastructure (VPCs, subnets, firewall, VM, Cloud Run)
-./setup-infra.sh
-
-# 4. Create connectivity (HA VPN, BGP, Hybrid NAT, Public NAT, ILB)
-./setup-connectivity.sh
-
-# 5. Wait ~60s for BGP convergence, then test
-./test.sh
-
-# 6. Tear down when done (VPN costs ~$0.60/hr)
-./teardown.sh
 ```
 
-## Scripts
+Then choose an approach:
 
-| Script | Purpose |
-|---|---|
-| `setup-iam.sh` | Service account, IAM roles, API enablement |
-| `setup-infra.sh` | VPCs, subnets, firewall, Artifact Registry, container images, VM, Cloud Run services + jobs |
-| `setup-connectivity.sh` | HA VPN, BGP, Hybrid NAT, Public NAT, ILB + serverless NEG |
-| `teardown.sh` | Complete teardown of all resources in dependency order |
-| `test.sh` | Exercises both traffic flows (spoke→hub via jobs, hub→spoke via ILB) |
+### Direct VPC Egress
+```bash
+cd direct-vpc-egress
+
+./setup-infra.sh           # Hub + spoke VPCs, subnets, VM, Cloud Run (Direct VPC Egress)
+./setup-connectivity.sh    # HA VPN, BGP, Hybrid NAT, Public NAT, ILB
+# Wait ~60s for BGP convergence
+./test.sh                  # Test both traffic flows
+./teardown.sh              # Tear down when done (~$0.60/hr while running)
+```
+
+### VPC Connector
+```bash
+cd vpc-connector
+
+./setup-infra.sh           # Hub + spoke VPCs, subnets, VM, VPC Connectors, Cloud Run
+./setup-connectivity.sh    # HA VPN, BGP, Public NAT, ILB (NO Hybrid NAT)
+# Wait ~60s for BGP convergence
+./test.sh                  # Test both traffic flows
+./teardown.sh              # Tear down when done (~$0.60/hr while running)
+```
+
+## Repository Structure
+
+```
+├── setup-iam.sh                    # Shared IAM setup (service account, roles, APIs)
+├── shared/
+│   ├── setup-hub.sh                # Shared hub: Artifact Registry, containers, VPC, VM
+│   └── teardown-hub.sh             # Shared hub teardown (checks for remaining spokes)
+├── direct-vpc-egress/
+│   ├── setup-infra.sh              # Spoke infra (overlapping subnets, Hybrid NAT)
+│   ├── setup-connectivity.sh       # VPN + BGP + Hybrid NAT + ILB
+│   ├── teardown.sh                 # Full teardown
+│   ├── test.sh                     # Traffic flow tests
+│   └── docs/                       # Architecture docs + diagrams
+├── vpc-connector/
+│   ├── setup-infra.sh              # Spoke infra (VPC Connectors, no overlapping IPs)
+│   ├── setup-connectivity.sh       # VPN + BGP + ILB (NO Hybrid NAT)
+│   ├── teardown.sh                 # Full teardown
+│   ├── test.sh                     # Traffic flow tests
+│   └── docs/                       # Architecture docs
+├── container/                      # Cloud Run service (Go HTTP server)
+├── container-job/                  # Cloud Run job (Go HTTP client)
+└── docs/
+    └── comparison.md               # Side-by-side comparison of approaches
+```
 
 All scripts default `PROJECT_ID` to `sb-paul-g-workshop`. Region is `europe-north2`. All scripts are idempotent.
 
 ## Resources Created
 
+### Direct VPC Egress
 - **3 VPCs** — `hub`, `spoke-1`, `spoke-2`
-- **9 subnets** — compute, overlap (x2), routable (x2), proxy-only (x2), private NAT (x2)
-- **1 VM** — `vm-hub` (e2-micro, python3 HTTP server, private IP only)
-- **2 Cloud Run services** — `cr-spoke-1`, `cr-spoke-2` (Go HTTP server on overlapping subnets)
-- **2 Cloud Run jobs** — `job-spoke-1`, `job-spoke-2` (test clients for spoke→hub flow)
-- **8 HA VPN tunnels** — 4 per spoke (2 interfaces × 2 directions)
-- **6 Cloud Routers** — 3 for VPN (hub + 2 spokes), 3 for NAT (hub + 2 spokes)
-- **2 Hybrid NAT gateways** — one per spoke, SNAT overlapping → routable
-- **1 Public NAT gateway** — hub, internet access for VM
-- **2 Internal Load Balancers** — serverless NEG → Cloud Run, one per spoke
+- **10 subnets** — compute, overlap (x2), routable (x2), proxy-only (x2), private NAT (x2)
+- **1 VM** — `vm-hub` (e2-micro, python3 HTTP server)
+- **2 Cloud Run services + 2 jobs** — Direct VPC Egress on overlapping `240.0.0.0/8`
+- **8 HA VPN tunnels**, **6 Cloud Routers**, **2 Hybrid NATs**, **1 Public NAT**, **2 ILBs**
+
+### VPC Connector
+- **3 VPCs** — `hub`, `spoke-c1`, `spoke-c2`
+- **7 subnets** — compute, connector (x2), routable (x2), proxy-only (x2)
+- **1 VM** — `vm-hub` (shared with Direct VPC Egress)
+- **2 VPC Access Connectors** — e2-micro, unique routable IPs
+- **2 Cloud Run services + 2 jobs** — via VPC Connector
+- **8 HA VPN tunnels**, **4 Cloud Routers**, **1 Public NAT**, **2 ILBs**
 
 ## Cost
 

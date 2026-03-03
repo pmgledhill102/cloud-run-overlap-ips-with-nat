@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 #
-# setup-infra.sh — Create base infrastructure (idempotent)
+# direct-vpc-egress/setup-infra.sh — Create spoke infrastructure for Direct VPC Egress approach (idempotent)
 #
-# Creates hub + spoke VPCs, subnets, firewall rules, Artifact Registry,
-# container images, VM, and Cloud Run services/jobs.
+# Sets up shared hub (via shared/setup-hub.sh), then creates spoke VPCs,
+# subnets (overlapping 240.0.0.0/8, routable, proxy-only, PNAT), firewall
+# rules, Cloud Run services, and Cloud Run jobs.
 #
 # Run this as the service account created by setup-iam.sh:
 #   gcloud config set auth/impersonate_service_account cloud-run-nat-poc@PROJECT.iam.gserviceaccount.com
 #
-# After this, run setup-connectivity.sh for VPN/NAT/ILB.
+# After this, run ./setup-connectivity.sh for VPN/NAT/ILB.
 #
 set -euo pipefail
 
@@ -26,7 +27,7 @@ JOB_IMAGE_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${JOB_IMAGE_N
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "=== Setup Infrastructure for project: ${PROJECT_ID} ==="
+echo "=== Setup Infrastructure (Direct VPC Egress) for project: ${PROJECT_ID} ==="
 echo "Region: ${REGION}"
 echo ""
 
@@ -37,54 +38,17 @@ resource_exists() {
 }
 
 # ============================================================
-# Step 1: Artifact Registry
+# Step 1: Shared hub infrastructure
 # ============================================================
-echo "--- Step 1: Artifact Registry ---"
-if resource_exists gcloud artifacts repositories describe "${REPO_NAME}" \
-    --location="${REGION}" --project="${PROJECT_ID}"; then
-  echo "Repository '${REPO_NAME}' already exists, skipping."
-else
-  gcloud artifacts repositories create "${REPO_NAME}" \
-    --repository-format=docker \
-    --location="${REGION}" \
-    --description="Cloud Run NAT PoC container images" \
-    --project="${PROJECT_ID}"
-  echo "Repository '${REPO_NAME}' created."
-fi
+echo "--- Step 1: Shared hub infrastructure ---"
+"${SCRIPT_DIR}/../shared/setup-hub.sh"
 
 # ============================================================
-# Step 2: Build and push container images
+# Step 2: Create spoke VPC networks
 # ============================================================
 echo ""
-echo "--- Step 2: Build and push container images ---"
-gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet 2>/dev/null || true
-
-# Service image (http-server)
-if gcloud artifacts docker images describe "${SERVICE_IMAGE_URL}" --project="${PROJECT_ID}" &>/dev/null; then
-  echo "Image '${SERVICE_IMAGE_URL}' already exists, skipping build."
-else
-  echo "Building service image..."
-  docker build --platform linux/amd64 -t "${SERVICE_IMAGE_URL}" "${SCRIPT_DIR}/container"
-  docker push "${SERVICE_IMAGE_URL}"
-  echo "Image pushed to ${SERVICE_IMAGE_URL}"
-fi
-
-# Job image (http-client)
-if gcloud artifacts docker images describe "${JOB_IMAGE_URL}" --project="${PROJECT_ID}" &>/dev/null; then
-  echo "Image '${JOB_IMAGE_URL}' already exists, skipping build."
-else
-  echo "Building job image..."
-  docker build --platform linux/amd64 -t "${JOB_IMAGE_URL}" "${SCRIPT_DIR}/container-job"
-  docker push "${JOB_IMAGE_URL}"
-  echo "Image pushed to ${JOB_IMAGE_URL}"
-fi
-
-# ============================================================
-# Step 3: Create VPC networks
-# ============================================================
-echo ""
-echo "--- Step 3: Create VPC networks ---"
-for vpc in hub spoke-1 spoke-2; do
+echo "--- Step 2: Create spoke VPC networks ---"
+for vpc in spoke-1 spoke-2; do
   if resource_exists gcloud compute networks describe "${vpc}" --project="${PROJECT_ID}"; then
     echo "VPC '${vpc}' already exists, skipping."
   else
@@ -96,30 +60,10 @@ for vpc in hub spoke-1 spoke-2; do
 done
 
 # ============================================================
-# Step 4: Create subnets
+# Step 3: Create spoke subnets
 # ============================================================
 echo ""
-echo "--- Step 4: Create subnets ---"
-
-# Hub: compute subnet (VM lives here)
-if resource_exists gcloud compute networks subnets describe "compute-hub" \
-    --region="${REGION}" --project="${PROJECT_ID}"; then
-  echo "Subnet 'compute-hub' already exists, skipping."
-else
-  gcloud compute networks subnets create "compute-hub" \
-    --network=hub \
-    --range="10.0.0.0/28" \
-    --region="${REGION}" \
-    --enable-private-ip-google-access \
-    --project="${PROJECT_ID}"
-  echo "Subnet 'compute-hub' (10.0.0.0/28) created in hub."
-fi
-# Ensure Private Google Access (idempotent)
-gcloud compute networks subnets update "compute-hub" \
-  --region="${REGION}" --enable-private-ip-google-access \
-  --project="${PROJECT_ID}" --quiet
-
-# Spoke subnets
+echo "--- Step 3: Create spoke subnets ---"
 for spoke_num in 1 2; do
   spoke="spoke-${spoke_num}"
 
@@ -187,51 +131,10 @@ for spoke_num in 1 2; do
 done
 
 # ============================================================
-# Step 5: Firewall rules
+# Step 4: Spoke firewall rules
 # ============================================================
 echo ""
-echo "--- Step 5: Create firewall rules ---"
-
-# Hub: allow IAP SSH
-if resource_exists gcloud compute firewall-rules describe "allow-iap-ssh-hub" --project="${PROJECT_ID}"; then
-  echo "Firewall rule 'allow-iap-ssh-hub' already exists, skipping."
-else
-  gcloud compute firewall-rules create "allow-iap-ssh-hub" \
-    --network=hub \
-    --allow=tcp:22 \
-    --source-ranges="35.235.240.0/20" \
-    --direction=INGRESS \
-    --project="${PROJECT_ID}"
-  echo "Firewall rule 'allow-iap-ssh-hub' created."
-fi
-
-# Hub: allow NAT ingress (traffic from spokes via Hybrid NAT)
-if resource_exists gcloud compute firewall-rules describe "allow-nat-ingress-hub" --project="${PROJECT_ID}"; then
-  echo "Firewall rule 'allow-nat-ingress-hub' already exists, skipping."
-else
-  gcloud compute firewall-rules create "allow-nat-ingress-hub" \
-    --network=hub \
-    --allow=tcp,udp,icmp \
-    --source-ranges="172.16.0.0/16" \
-    --direction=INGRESS \
-    --project="${PROJECT_ID}"
-  echo "Firewall rule 'allow-nat-ingress-hub' created."
-fi
-
-# Hub: allow internal traffic
-if resource_exists gcloud compute firewall-rules describe "allow-internal-hub" --project="${PROJECT_ID}"; then
-  echo "Firewall rule 'allow-internal-hub' already exists, skipping."
-else
-  gcloud compute firewall-rules create "allow-internal-hub" \
-    --network=hub \
-    --allow=tcp,udp,icmp \
-    --source-ranges="10.0.0.0/8" \
-    --direction=INGRESS \
-    --project="${PROJECT_ID}"
-  echo "Firewall rule 'allow-internal-hub' created."
-fi
-
-# Spokes: allow internal + NAT traffic
+echo "--- Step 4: Create spoke firewall rules ---"
 for spoke_num in 1 2; do
   spoke="spoke-${spoke_num}"
   fw="allow-internal-${spoke}"
@@ -249,45 +152,10 @@ for spoke_num in 1 2; do
 done
 
 # ============================================================
-# Step 6: Compute VM (hub)
+# Step 5: Cloud Run services (one per spoke)
 # ============================================================
 echo ""
-echo "--- Step 6: Create Compute VM ---"
-if resource_exists gcloud compute instances describe "vm-hub" \
-    --zone="${ZONE}" --project="${PROJECT_ID}"; then
-  echo "Instance 'vm-hub' already exists, skipping."
-else
-  gcloud compute instances create "vm-hub" \
-    --zone="${ZONE}" \
-    --machine-type=e2-micro \
-    --network-interface=network=hub,subnet=compute-hub,no-address \
-    --metadata=startup-script='#!/bin/bash
-mkdir -p /var/www
-cat > /var/www/index.html <<HTMLEOF
-Hello from vm-hub ($(hostname))
-HTMLEOF
-cat > /etc/systemd/system/webserver.service <<UNIT
-[Unit]
-Description=Simple Python HTTP Server
-After=network.target
-[Service]
-WorkingDirectory=/var/www
-ExecStart=/usr/bin/python3 -m http.server 80
-Restart=always
-[Install]
-WantedBy=multi-user.target
-UNIT
-systemctl daemon-reload
-systemctl enable --now webserver' \
-    --project="${PROJECT_ID}"
-  echo "Instance 'vm-hub' created."
-fi
-
-# ============================================================
-# Step 7: Cloud Run services (one per spoke)
-# ============================================================
-echo ""
-echo "--- Step 7: Deploy Cloud Run services ---"
+echo "--- Step 5: Deploy Cloud Run services ---"
 for spoke_num in 1 2; do
   spoke="spoke-${spoke_num}"
   service="cr-${spoke}"
@@ -316,10 +184,10 @@ for spoke_num in 1 2; do
 done
 
 # ============================================================
-# Step 8: Cloud Run jobs (one per spoke — test client)
+# Step 6: Cloud Run jobs (one per spoke — test client)
 # ============================================================
 echo ""
-echo "--- Step 8: Create Cloud Run jobs ---"
+echo "--- Step 6: Create Cloud Run jobs ---"
 
 # Get VM IP for job target
 VM_IP="$(gcloud compute instances describe "vm-hub" \
@@ -361,11 +229,11 @@ fi
 # Summary
 # ============================================================
 echo ""
-echo "=== Infrastructure setup complete ==="
+echo "=== Infrastructure setup complete (Direct VPC Egress) ==="
 echo ""
-echo "VPCs: hub, spoke-1, spoke-2"
-echo "VM: vm-hub (hub/compute-hub, 10.0.0.0/28)"
-echo "Cloud Run services: cr-spoke-1, cr-spoke-2"
+echo "Hub: VPC hub, subnet compute-hub (10.0.0.0/28), vm-hub"
+echo "Spoke VPCs: spoke-1, spoke-2"
+echo "Cloud Run services: cr-spoke-1, cr-spoke-2 (Direct VPC Egress on 240.0.0.0/8)"
 echo "Cloud Run jobs: job-spoke-1, job-spoke-2"
 echo ""
 echo "Next: run ./setup-connectivity.sh to create VPN, NAT, and ILB."

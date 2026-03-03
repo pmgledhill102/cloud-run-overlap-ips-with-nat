@@ -4,29 +4,44 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-GCP proof-of-concept demonstrating how Cloud Run services can use overlapping IP ranges (Class E `240.0.0.0/8`) across different VPCs, with a hub-spoke architecture that enables bidirectional communication via HA VPN, Hybrid NAT, and Internal Load Balancers.
+GCP proof-of-concept comparing two approaches for Cloud Run services with overlapping IP ranges across hub-spoke VPC architectures:
 
-## Scripts
+1. **Direct VPC Egress** (`direct-vpc-egress/`) — Cloud Run deploys into VPC with overlapping Class E IPs. Uses Hybrid NAT + HA VPN + ILB.
+2. **VPC Connector** (`vpc-connector/`) — Cloud Run connects through VPC Access Connector VMs with unique IPs. Uses HA VPN + ILB (no Hybrid NAT).
 
-- **`setup-iam.sh`** — Creates service account (`cloud-run-nat-poc`) and binds IAM roles. Run first with a privileged account (Owner/IAM Admin). Enables all required APIs.
-- **`setup-infra.sh`** — Creates base infrastructure: hub + spoke VPCs, subnets, firewall rules, Artifact Registry, container images, VM, Cloud Run services/jobs. Idempotent. Run as the service account.
-- **`setup-connectivity.sh`** — Creates HA VPN tunnels, BGP sessions, Hybrid NAT, Public NAT, and ILB with serverless NEG. Run after setup-infra.sh. Wait ~60s for BGP convergence.
-- **`teardown.sh`** — Destroys all infrastructure including connectivity resources and the service account. Idempotent.
-- **`test.sh`** — Tests both traffic flows: triggers Cloud Run Jobs (spoke→hub via NAT) and curls ILBs from VM (hub→spoke).
+Shared hub infrastructure (Artifact Registry, hub VPC, VM) is in `shared/`.
+
+## Repository Structure
+
+- **`setup-iam.sh`** — Creates service account (`cloud-run-nat-poc`) and binds IAM roles. Run first.
+- **`shared/setup-hub.sh`** — Shared hub: Artifact Registry, container images, hub VPC, subnet, firewall, VM.
+- **`shared/teardown-hub.sh`** — Hub teardown (guards against deleting while spokes exist).
+- **`direct-vpc-egress/`** — Direct VPC Egress approach scripts and docs.
+- **`vpc-connector/`** — VPC Connector approach scripts and docs.
+- **`docs/comparison.md`** — Side-by-side comparison of approaches.
+
+Each approach directory contains: `setup-infra.sh`, `setup-connectivity.sh`, `teardown.sh`, `test.sh`, and `docs/`.
 
 All scripts default `PROJECT_ID` to `sb-paul-g-workshop`. Region is `europe-north2`.
 
 ## Architecture
 
-See `docs/architecture.md` for full details.
+See `docs/comparison.md` for the side-by-side overview.
 
-- **3 VPCs**: `hub`, `spoke-1`, `spoke-2` (custom subnet mode)
-- **Hub**: Compute VM (`vm-hub`) on `10.0.0.0/28`, Public NAT for internet
-- **Spokes**: Each has overlapping `240.0.0.0/8` (Cloud Run egress), routable `/28` (ILB), proxy-only `/26`, and PRIVATE_NAT `/24`
-- **HA VPN**: 8 tunnels total (4 per spoke), BGP route exchange (non-overlapping only)
-- **Hybrid NAT**: On each spoke, SNATs `240.x` → `172.16.x` for spoke→hub traffic
-- **ILB**: HTTPS (self-signed cert, port 443) with serverless NEG on each spoke for hub→spoke traffic
-- **Cloud Run**: 2 services (`cr-spoke-1`, `cr-spoke-2`) + 2 jobs (`job-spoke-1`, `job-spoke-2`)
+### Direct VPC Egress (see `direct-vpc-egress/docs/architecture.md`)
+- **3 VPCs**: `hub`, `spoke-1`, `spoke-2`
+- **Spokes**: overlapping `240.0.0.0/8`, routable `/28`, proxy-only `/26`, PNAT `/24`
+- **Hybrid NAT**: SNATs `240.x` → `172.16.x` for spoke→hub traffic
+- **Cloud Run**: `cr-spoke-{1,2}`, `job-spoke-{1,2}` (Direct VPC Egress)
+
+### VPC Connector (see `vpc-connector/docs/architecture.md`)
+- **3 VPCs**: `hub`, `spoke-c1`, `spoke-c2`
+- **Spokes**: connector `/28` (unique IPs), routable `/28`, proxy-only `/26`
+- **No Hybrid NAT**: connector IPs are already routable
+- **Cloud Run**: `cr-spoke-c{1,2}`, `job-spoke-c{1,2}` (VPC Connector)
+
+### Shared
+- **Hub**: VM (`vm-hub`) on `10.0.0.0/28`, Public NAT
 
 ## IAM Roles (bound by setup-iam.sh)
 
