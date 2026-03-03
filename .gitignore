@@ -1,2 +1,7 @@
 .claude/settings.local.json
 .cloudcoop/config.toml
+.cloudcoop/local.toml
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db
