@@ -1,8 +1,8 @@
 # VPC Connector Approach — Architecture
 
-![Hub-Spoke Architecture](diagrams/architecture.drawio.svg)
+![Hub-Spoke Architecture](diagrams/architecture.svg)
 
-![Traffic Flows](diagrams/traffic-flows.drawio.svg)
+![Traffic Flows](diagrams/traffic-flows.svg)
 
 ## Overview
 
