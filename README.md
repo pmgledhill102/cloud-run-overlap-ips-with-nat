@@ -26,6 +26,10 @@ See [direct-vpc-egress/docs/architecture.md](direct-vpc-egress/docs/architecture
 
 ### VPC Connector
 
+![VPC Connector Architecture](vpc-connector/docs/diagrams/architecture.drawio.svg)
+
+![VPC Connector Traffic Flows](vpc-connector/docs/diagrams/traffic-flows.drawio.svg)
+
 See [vpc-connector/docs/architecture.md](vpc-connector/docs/architecture.md) for full details.
 
 ## Quick Start
