@@ -1,5 +1,9 @@
 # VPC Connector Approach — Architecture
 
+![Hub-Spoke Architecture](diagrams/architecture.drawio.svg)
+
+![Traffic Flows](diagrams/traffic-flows.drawio.svg)
+
 ## Overview
 
 This approach uses **VPC Serverless Access Connectors** to connect Cloud Run services to spoke VPCs, instead of Direct VPC Egress. The connector acts as a NAT boundary — Cloud Run traffic exits with the connector VM's IP (from a unique `/28` subnet), eliminating the need for overlapping IP subnets and Hybrid NAT.
