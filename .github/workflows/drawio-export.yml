@@ -38,6 +38,7 @@ jobs:
           path: ${{ matrix.path }}
           format: svg
           transparent: false
+          action-mode: all
 
       - name: Rename exports from .drawio.svg to .svg
         if: steps.check.outputs.has_files == 'true'
@@ -46,11 +47,14 @@ jobs:
             [ -f "$f" ] && mv "$f" "${f%.drawio.svg}.svg"
           done
 
-      - name: Commit updated SVGs
+      - name: Commit and push updated SVGs
         if: steps.check.outputs.has_files == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add ${{ matrix.path }}/*.svg
-          git diff --cached --quiet || git commit -m "Auto-export drawio diagrams to SVG"
-          git push
+          if ! git diff --cached --quiet; then
+            git pull --rebase origin main
+            git commit -m "Auto-export drawio diagrams to SVG [${{ matrix.path }}]"
+            git push
+          fi
