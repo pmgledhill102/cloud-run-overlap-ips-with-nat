@@ -18,17 +18,17 @@ See [docs/comparison.md](docs/comparison.md) for a detailed side-by-side compari
 
 ### Direct VPC Egress
 
-![Hub-Spoke Architecture](direct-vpc-egress/docs/diagrams/architecture.drawio.svg)
+![Hub-Spoke Architecture](direct-vpc-egress/docs/diagrams/architecture.svg)
 
-![Traffic Flows](direct-vpc-egress/docs/diagrams/traffic-flows.drawio.svg)
+![Traffic Flows](direct-vpc-egress/docs/diagrams/traffic-flows.svg)
 
 See [direct-vpc-egress/docs/architecture.md](direct-vpc-egress/docs/architecture.md) for full details.
 
 ### VPC Connector
 
-![VPC Connector Architecture](vpc-connector/docs/diagrams/architecture.drawio.svg)
+![VPC Connector Architecture](vpc-connector/docs/diagrams/architecture.svg)
 
-![VPC Connector Traffic Flows](vpc-connector/docs/diagrams/traffic-flows.drawio.svg)
+![VPC Connector Traffic Flows](vpc-connector/docs/diagrams/traffic-flows.svg)
 
 See [vpc-connector/docs/architecture.md](vpc-connector/docs/architecture.md) for full details.
 
