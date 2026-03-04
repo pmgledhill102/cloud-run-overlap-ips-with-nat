@@ -14,7 +14,7 @@
 set -euo pipefail
 
 # --- Configuration ---
-PROJECT_ID="${PROJECT_ID:-sb-paul-g-workshop}"
+PROJECT_ID="${PROJECT_ID:-sb-paul-g-vpcsac}"
 
 REGION="europe-north2"
 HUB_ASN=65000

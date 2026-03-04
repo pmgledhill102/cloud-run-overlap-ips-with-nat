@@ -11,7 +11,7 @@
 #
 set -euo pipefail
 
-PROJECT_ID="${PROJECT_ID:-sb-paul-g-workshop}"
+PROJECT_ID="${PROJECT_ID:-sb-paul-g-vpcsac}"
 
 REGION="europe-north2"
 ZONE="${REGION}-a"
@@ -161,6 +161,7 @@ echo "--- Step 8: Remove IAM bindings ---"
 if gcloud iam service-accounts describe "${SA_EMAIL}" --project="${PROJECT_ID}" &>/dev/null; then
   ROLES=(
     roles/compute.networkAdmin
+    roles/compute.securityAdmin
     roles/compute.instanceAdmin.v1
     roles/run.admin
     roles/run.invoker

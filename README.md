@@ -87,7 +87,7 @@ cd vpc-connector
     └── comparison.md               # Side-by-side comparison of approaches
 ```
 
-All scripts default `PROJECT_ID` to `sb-paul-g-workshop`. Region is `europe-north2`. All scripts are idempotent.
+All scripts default `PROJECT_ID` to `sb-paul-g-vpcsac`. Region is `europe-north2`. All scripts are idempotent.
 
 ## Resources Created
 

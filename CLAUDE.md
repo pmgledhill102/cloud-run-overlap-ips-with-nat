@@ -22,7 +22,7 @@ Shared hub infrastructure (Artifact Registry, hub VPC, VM) is in `shared/`.
 
 Each approach directory contains: `setup-infra.sh`, `setup-connectivity.sh`, `teardown.sh`, `test.sh`, and `docs/`.
 
-All scripts default `PROJECT_ID` to `sb-paul-g-workshop`. Region is `europe-north2`.
+All scripts default `PROJECT_ID` to `sb-paul-g-vpcsac`. Region is `europe-north2`.
 
 ## Architecture
 
@@ -45,7 +45,7 @@ See `docs/comparison.md` for the side-by-side overview.
 
 ## IAM Roles (bound by setup-iam.sh)
 
-`roles/compute.networkAdmin`, `roles/compute.instanceAdmin.v1`, `roles/run.admin`, `roles/run.invoker`, `roles/vpcaccess.admin`, `roles/iam.serviceAccountUser`, `roles/iap.tunnelResourceAccessor`, `roles/artifactregistry.admin`, `roles/networkconnectivity.hubAdmin`
+`roles/compute.networkAdmin`, `roles/compute.securityAdmin`, `roles/compute.instanceAdmin.v1`, `roles/run.admin`, `roles/run.invoker`, `roles/vpcaccess.admin`, `roles/iam.serviceAccountUser`, `roles/iap.tunnelResourceAccessor`, `roles/artifactregistry.admin`, `roles/networkconnectivity.hubAdmin`
 
 Cloud Run Service Agent also gets `roles/compute.networkUser` for Direct VPC egress.
 
