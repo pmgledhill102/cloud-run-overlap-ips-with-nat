@@ -9,7 +9,7 @@
 #
 set -euo pipefail
 
-PROJECT_ID="${PROJECT_ID:-sb-paul-g-workshop}"
+PROJECT_ID="${PROJECT_ID:-sb-paul-g-vpcsac}"
 
 REGION="europe-north2"
 ZONE="${REGION}-a"

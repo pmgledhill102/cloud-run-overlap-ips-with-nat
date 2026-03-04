@@ -7,7 +7,7 @@
 #
 set -euo pipefail
 
-PROJECT_ID="${PROJECT_ID:-sb-paul-g-workshop}"
+PROJECT_ID="${PROJECT_ID:-sb-paul-g-vpcsac}"
 
 SA_NAME="cloud-run-nat-poc"
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
@@ -47,6 +47,7 @@ echo ""
 echo "--- Binding IAM roles ---"
 ROLES=(
   roles/compute.networkAdmin
+  roles/compute.securityAdmin
   roles/compute.instanceAdmin.v1
   roles/run.admin
   roles/run.invoker
@@ -78,6 +79,21 @@ gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
   --condition=None \
   --quiet >/dev/null
 echo "Cloud Run Service Agent granted compute.networkUser."
+
+# --- Grant caller Token Creator for impersonation ---
+echo ""
+echo "--- Granting caller serviceAccountTokenCreator on SA ---"
+CALLER_EMAIL="$(gcloud config get account 2>/dev/null)"
+if [[ -n "${CALLER_EMAIL}" ]]; then
+  gcloud iam service-accounts add-iam-policy-binding "${SA_EMAIL}" \
+    --member="user:${CALLER_EMAIL}" \
+    --role="roles/iam.serviceAccountTokenCreator" \
+    --project="${PROJECT_ID}" \
+    --quiet >/dev/null
+  echo "Granted serviceAccountTokenCreator to ${CALLER_EMAIL}."
+else
+  echo "WARNING: Could not determine caller email. Grant serviceAccountTokenCreator manually."
+fi
 
 # --- Summary ---
 echo ""
