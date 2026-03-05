@@ -2,17 +2,17 @@
 
 ## Overview
 
-This PoC demonstrates how Cloud Run services deployed on **overlapping IP ranges** (Class E `240.0.0.0/8`) across separate VPCs can communicate with a central hub VM — and vice versa — using HA VPN, Hybrid NAT, and Internal Load Balancers.
+This PoC demonstrates how Cloud Run services deployed on **overlapping IP ranges** (Class E `240.0.0.0/20`) across separate VPCs can communicate with a central hub VM — and vice versa — using HA VPN, Hybrid NAT, and Internal Load Balancers.
 
 ## Key Findings
 
 **Can we use overlapping non-routable IP addresses in a Google Cloud network?**
 
-Yes. GCP allows Class E addresses (`240.0.0.0/4`) as VPC subnet ranges. Multiple VPCs can use the same Class E CIDR (e.g. `240.0.0.0/8`) without conflict, since each VPC is an isolated network. Cloud Run services deployed with Direct VPC egress into these subnets function normally. Cross-VPC communication is possible via Hybrid NAT (which translates the overlapping source IPs to unique routable IPs) combined with HA VPN tunnels.
+Yes. GCP allows Class E addresses (`240.0.0.0/4`) as VPC subnet ranges. Multiple VPCs can use the same Class E CIDR (e.g. `240.0.0.0/20`) without conflict, since each VPC is an isolated network. Cloud Run services deployed with Direct VPC egress into these subnets function normally. Cross-VPC communication is possible via Hybrid NAT (which translates the overlapping source IPs to unique routable IPs) combined with HA VPN tunnels.
 
 **Can we use non-routable IP addresses for the proxy-only subnet?**
 
-Yes. GCP accepts Class E ranges for `REGIONAL_MANAGED_PROXY` purpose subnets (e.g. `241.0.0.0/26`). The Envoy proxies provisioned by the Internal Load Balancer operate entirely within the VPC — their IPs never appear in cross-VPC traffic. This means the proxy-only subnet can use the same overlapping range in every spoke, doesn't need to be advertised via BGP, and consumes zero routable address space.
+Yes. GCP accepts Class E ranges for `REGIONAL_MANAGED_PROXY` purpose subnets (e.g. `241.0.0.0/18`). The Envoy proxies provisioned by the Internal Load Balancer operate entirely within the VPC — their IPs never appear in cross-VPC traffic. This means the proxy-only subnet can use the same overlapping range in every spoke, doesn't need to be advertised via BGP, and consumes zero routable address space.
 
 ## Topology
 
@@ -32,19 +32,19 @@ The overlapping Class E source IPs are translated to unique routable IPs in the 
 
 VM (10.0.0.x) → HA VPN → **ILB** (10.x.0.x) → serverless NEG → Cloud Run service
 
-The hub VM sends traffic to the spoke's Internal Load Balancer (on a routable /28 subnet advertised via BGP). The ILB routes to a serverless NEG pointing at the Cloud Run service. No NAT is needed in this direction since the ILB uses a routable IP.
+The hub VM sends traffic to the spoke's Internal Load Balancer (on a routable /22 subnet advertised via BGP). The ILB routes to a serverless NEG pointing at the Cloud Run service. No NAT is needed in this direction since the ILB uses a routable IP.
 
 ## Subnets
 
 | Subnet | VPC | CIDR | Purpose |
 |---|---|---|---|
 | `compute-hub` | `hub` | `10.0.0.0/28` | VM (Private Google Access enabled) |
-| `overlap-spoke1` | `spoke-1` | `240.0.0.0/8` | Cloud Run egress (overlapping) |
-| `overlap-spoke2` | `spoke-2` | `240.0.0.0/8` | Cloud Run egress (overlapping) |
-| `routable-spoke1` | `spoke-1` | `10.1.0.0/28` | ILB forwarding rule |
-| `routable-spoke2` | `spoke-2` | `10.2.0.0/28` | ILB forwarding rule |
-| `proxy-spoke1` | `spoke-1` | `241.0.0.0/26` | ILB proxy-only (REGIONAL_MANAGED_PROXY, overlapping) |
-| `proxy-spoke2` | `spoke-2` | `241.0.0.0/26` | ILB proxy-only (REGIONAL_MANAGED_PROXY, overlapping) |
+| `overlap-spoke1` | `spoke-1` | `240.0.0.0/20` | Cloud Run egress (overlapping) |
+| `overlap-spoke2` | `spoke-2` | `240.0.0.0/20` | Cloud Run egress (overlapping) |
+| `routable-spoke1` | `spoke-1` | `10.1.0.0/22` | ILB forwarding rule |
+| `routable-spoke2` | `spoke-2` | `10.2.0.0/22` | ILB forwarding rule |
+| `proxy-spoke1` | `spoke-1` | `241.0.0.0/18` | ILB proxy-only (REGIONAL_MANAGED_PROXY, overlapping) |
+| `proxy-spoke2` | `spoke-2` | `241.0.0.0/18` | ILB proxy-only (REGIONAL_MANAGED_PROXY, overlapping) |
 | `pnat-spoke1` | `spoke-1` | `172.16.1.0/24` | Hybrid NAT source IPs (PRIVATE_NAT) |
 | `pnat-spoke2` | `spoke-2` | `172.16.2.0/24` | Hybrid NAT source IPs (PRIVATE_NAT) |
 
@@ -60,10 +60,10 @@ The hub VM sends traffic to the spoke's Internal Load Balancer (on a routable /2
 | Router | Advertises |
 |---|---|
 | Hub | `10.0.0.0/28` (compute subnet) |
-| Spoke-1 | `10.1.0.0/28`, `172.16.1.0/24` |
-| Spoke-2 | `10.2.0.0/28`, `172.16.2.0/24` |
+| Spoke-1 | `10.1.0.0/22`, `172.16.1.0/24` |
+| Spoke-2 | `10.2.0.0/22`, `172.16.2.0/24` |
 
-Only non-overlapping routes are exchanged. The overlapping `240.0.0.0/8` and `241.0.0.0/26` subnets are **never advertised** — they exist only within each spoke for Cloud Run egress and ILB proxy capacity respectively.
+Only non-overlapping routes are exchanged. The overlapping `240.0.0.0/20` and `241.0.0.0/18` subnets are **never advertised** — they exist only within each spoke for Cloud Run egress and ILB proxy capacity respectively.
 
 ## NAT Configuration
 
@@ -88,7 +88,7 @@ Each spoke exposes its Cloud Run service via an Internal Load Balancer with TLS 
 5. **Target HTTPS proxy** (`proxy-spoke-{n}`) → TLS termination with self-signed cert
 6. **Forwarding rule** (`ilb-spoke-{n}`) → on `routable-spoke-{n}` subnet, port 443
 
-The ILB terminates TLS at the Envoy proxy; the connection to Cloud Run via the serverless NEG is handled internally by GCP. The ILB's IP is on the routable `/28` subnet, which is advertised via BGP to the hub. The proxy-only subnet provides Envoy proxy capacity.
+The ILB terminates TLS at the Envoy proxy; the connection to Cloud Run via the serverless NEG is handled internally by GCP. The ILB's IP is on the routable `/22` subnet, which is advertised via BGP to the hub. The proxy-only subnet provides Envoy proxy capacity.
 
 ## Compute & Cloud Run
 

@@ -30,13 +30,13 @@ See `docs/comparison.md` for the side-by-side overview.
 
 ### Direct VPC Egress (see `direct-vpc-egress/docs/architecture.md`)
 - **3 VPCs**: `hub`, `spoke-1`, `spoke-2`
-- **Spokes**: overlapping `240.0.0.0/8`, routable `/28`, proxy-only `/26`, PNAT `/24`
+- **Spokes**: overlapping `240.0.0.0/20`, routable `/22`, proxy-only `/18`, PNAT `/24`
 - **Hybrid NAT**: SNATs `240.x` → `172.16.x` for spoke→hub traffic
 - **Cloud Run**: `cr-spoke-{1,2}`, `job-spoke-{1,2}` (Direct VPC Egress)
 
 ### VPC Connector (see `vpc-connector/docs/architecture.md`)
 - **3 VPCs**: `hub`, `spoke-c1`, `spoke-c2`
-- **Spokes**: connector `/28` (unique IPs), routable `/28`, proxy-only `/26`
+- **Spokes**: connector `/28` (unique IPs), routable `/22`, proxy-only `/18`
 - **No Hybrid NAT**: connector IPs are already routable
 - **Cloud Run**: `cr-spoke-c{1,2}`, `job-spoke-c{1,2}` (VPC Connector)
 

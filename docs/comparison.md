@@ -13,7 +13,7 @@ They differ in **how Cloud Run connects to the VPC** — and this one difference
 | **Cloud Run networking** | `--network`/`--subnet` | `--vpc-connector` |
 | **How Cloud Run connects** | Deploys directly into VPC subnet | Connects through connector VMs |
 | **Cloud Run egress IP** | From VPC subnet (e.g., `240.x.x.x`) | From connector VM (e.g., `10.10.x.x`) |
-| **Overlapping subnet needed?** | Yes (`240.0.0.0/8`) | No |
+| **Overlapping subnet needed?** | Yes (`240.0.0.0/20`) | No |
 | **Hybrid NAT needed?** | Yes (SNAT `240.x` → `172.16.x`) | No |
 | **PNAT subnet needed?** | Yes (`172.16.x.0/24`) | No |
 | **Subnets per spoke** | 4 | 3 |
