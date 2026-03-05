@@ -3,7 +3,7 @@
 # direct-vpc-egress/setup-infra.sh — Create spoke infrastructure for Direct VPC Egress approach (idempotent)
 #
 # Sets up shared hub (via shared/setup-hub.sh), then creates spoke VPCs,
-# subnets (overlapping 240.0.0.0/8, routable, proxy-only, PNAT), firewall
+# subnets (overlapping 240.0.0.0/20, routable, proxy-only, PNAT), firewall
 # rules, Cloud Run services, and Cloud Run jobs.
 #
 # Run this as the service account created by setup-iam.sh:
@@ -75,10 +75,10 @@ for spoke_num in 1 2; do
   else
     gcloud compute networks subnets create "${subnet}" \
       --network="${spoke}" \
-      --range="240.0.0.0/8" \
+      --range="240.0.0.0/20" \
       --region="${REGION}" \
       --project="${PROJECT_ID}"
-    echo "Subnet '${subnet}' (240.0.0.0/8) created in ${spoke}."
+    echo "Subnet '${subnet}' (240.0.0.0/20) created in ${spoke}."
   fi
 
   # Routable /22 (ILB forwarding rule)
@@ -233,7 +233,7 @@ echo "=== Infrastructure setup complete (Direct VPC Egress) ==="
 echo ""
 echo "Hub: VPC hub, subnet compute-hub (10.0.0.0/28), vm-hub"
 echo "Spoke VPCs: spoke-1, spoke-2"
-echo "Cloud Run services: cr-spoke-1, cr-spoke-2 (Direct VPC Egress on 240.0.0.0/8)"
+echo "Cloud Run services: cr-spoke-1, cr-spoke-2 (Direct VPC Egress on 240.0.0.0/20)"
 echo "Cloud Run jobs: job-spoke-1, job-spoke-2"
 echo ""
 echo "Next: run ./setup-connectivity.sh to create VPN, NAT, and ILB."

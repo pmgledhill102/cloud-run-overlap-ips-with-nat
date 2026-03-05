@@ -7,7 +7,7 @@
 # Connectors, Cloud Run services, and Cloud Run jobs.
 #
 # Key difference from Direct VPC Egress:
-#   - No overlapping 240.0.0.0/8 subnet (Cloud Run doesn't deploy into VPC)
+#   - No overlapping 240.0.0.0/20 subnet (Cloud Run doesn't deploy into VPC)
 #   - No PNAT subnet (no Hybrid NAT needed)
 #   - VPC Access Connector handles the NAT boundary
 #   - Cloud Run uses --vpc-connector instead of --network/--subnet

@@ -13,7 +13,7 @@ This approach uses **VPC Serverless Access Connectors** to connect Cloud Run ser
 | Aspect | Direct VPC Egress | VPC Connector |
 |---|---|---|
 | Cloud Run networking | `--network`/`--subnet` (deploys into VPC) | `--vpc-connector` (connects through VMs) |
-| Overlapping subnet | Required (`240.0.0.0/8`) | Not needed |
+| Overlapping subnet | Required (`240.0.0.0/20`) | Not needed |
 | Hybrid NAT | Required (SNAT overlapping → unique) | Not needed |
 | PNAT subnet | Required (`172.16.x.0/24`) | Not needed |
 | Subnets per spoke | 4 (overlap, routable, proxy, pnat) | 3 (connector, routable, proxy) |

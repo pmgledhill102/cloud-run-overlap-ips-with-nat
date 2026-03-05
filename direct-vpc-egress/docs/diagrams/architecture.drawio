@@ -16,7 +16,7 @@
         </mxCell>
 
         <!-- Overlap subnet -->
-        <mxCell id="sub-overlap-s1" value="overlap-spoke-1  —  240.0.0.0/8 (Class E, overlapping)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-s1">
+        <mxCell id="sub-overlap-s1" value="overlap-spoke-1  —  240.0.0.0/20 (Class E, overlapping)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-s1">
           <mxGeometry x="15" y="38" width="390" height="145" as="geometry"/>
         </mxCell>
         <mxCell id="cr-s1" value="cr-spoke-1" style="shape=mxgraph.gcp2.cloud_run;fillColor=#AECBFA;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="sub-overlap-s1">
@@ -118,7 +118,7 @@
         </mxCell>
 
         <!-- Overlap subnet -->
-        <mxCell id="sub-overlap-s2" value="overlap-spoke-2  —  240.0.0.0/8 (Class E, overlapping)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-s2">
+        <mxCell id="sub-overlap-s2" value="overlap-spoke-2  —  240.0.0.0/20 (Class E, overlapping)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-s2">
           <mxGeometry x="15" y="38" width="390" height="145" as="geometry"/>
         </mxCell>
         <mxCell id="cr-s2" value="cr-spoke-2" style="shape=mxgraph.gcp2.cloud_run;fillColor=#AECBFA;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="sub-overlap-s2">
@@ -190,7 +190,7 @@
         </mxCell>
 
         <!-- ==================== KEY FINDINGS ==================== -->
-        <mxCell id="findings" value="Key Findings&#xa;&#xa;✓  Cloud Run services work on overlapping Class E (240.0.0.0/8) subnets across VPCs&#xa;✓  Hybrid NAT translates overlapping IPs to unique routable IPs for cross-VPC traffic&#xa;✓  ILB proxy-only subnets accept Class E (241.0.0.0/18) — can overlap across spokes" style="text;fontSize=10;fontColor=#3C4043;align=left;verticalAlign=top;fillColor=#FFF8E1;rounded=1;strokeColor=#F9A825;spacingLeft=10;spacingRight=10;spacingTop=6;spacingBottom=6;whiteSpace=wrap;" vertex="1" parent="1">
+        <mxCell id="findings" value="Key Findings&#xa;&#xa;✓  Cloud Run services work on overlapping Class E (240.0.0.0/20) subnets across VPCs&#xa;✓  Hybrid NAT translates overlapping IPs to unique routable IPs for cross-VPC traffic&#xa;✓  ILB proxy-only subnets accept Class E (241.0.0.0/18) — can overlap across spokes" style="text;fontSize=10;fontColor=#3C4043;align=left;verticalAlign=top;fillColor=#FFF8E1;rounded=1;strokeColor=#F9A825;spacingLeft=10;spacingRight=10;spacingTop=6;spacingBottom=6;whiteSpace=wrap;" vertex="1" parent="1">
           <mxGeometry x="40" y="810" width="500" height="80" as="geometry"/>
         </mxCell>
 

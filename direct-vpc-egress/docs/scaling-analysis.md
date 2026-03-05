@@ -196,14 +196,14 @@ Cloud Run services with Direct VPC egress consume IPs from the subnet they are d
 
 **Scaling math**:
 
-| Scale | Instances | IPs needed (2×) | % of `/8` |
+| Scale | Instances | IPs needed (2×) | % of `/20` |
 |---|---|---|---|
-| PoC (2 services) | 10 | 20 | 0.0001% |
-| 100 services × 50 instances | 5,000 | 10,000 | 0.06% |
-| 1,000 services × 100 instances | 100,000 | 200,000 | 1.2% |
-| Revision rollover (2× above) | 200,000 | 400,000 | 2.4% |
+| PoC (2 services) | 10 | 20 | 0.5% |
+| 100 services × 50 instances | 5,000 | 10,000 | 244% (**exceeds**) |
+| 1,000 services × 100 instances | 100,000 | 200,000 | N/A |
+| Revision rollover (2× above) | 200,000 | 400,000 | N/A |
 
-The overlapping `/8` subnet (`240.0.0.0/8`) provides **16,777,216 addresses** — 16.7M. Even the most aggressive scaling scenario uses a small fraction.
+The overlapping `/20` subnet (`240.0.0.0/20`) provides **4,096 addresses** (4,092 usable). Each Cloud Run instance consumes 2 IPs, supporting ~2,046 concurrent instances per spoke. In production, each project gets its own `/20` from the Class E space — projects requiring more instances can be assigned a larger block (e.g. `/18` = 16,384 addresses).
 
 **Per-project limits**:
 
@@ -213,7 +213,7 @@ The overlapping `/8` subnet (`240.0.0.0/8`) provides **16,777,216 addresses** �
 | Services per project per region | 1,000 | No |
 | Jobs per project per region | 1,000 | No |
 
-**Verdict**: Not a constraint. The `/8` is enormous. Per-revision instance limits (100–200) are the more relevant bottleneck but are requestable.
+**Verdict**: Adequate for typical per-project usage (~2,046 instances). For projects needing more capacity, assign a larger Class E block. Per-revision instance limits (100–200) are the more relevant bottleneck but are requestable.
 
 ### 2.8 Per-Project vs Per-VPC Quotas in Shared VPC
 
@@ -230,7 +230,7 @@ In a Shared VPC model, some quotas are scoped to the **host project** (shared po
 | Cloud Routers | Per VPC per region (max 5) | Hard limit, shared across all traffic |
 | Dynamic route prefixes | Per VPC per region (250 default) | Shared across all spokes on the hub |
 | Firewall rules | Per host project | 1,000 default (requestable). Shared |
-| Subnet IP addresses | Per VPC | Shared. The `/8` overlap subnet is consumed by all projects' Cloud Run instances |
+| Subnet IP addresses | Per VPC | Shared. The `/20` overlap subnet is consumed by all projects' Cloud Run instances |
 
 **Key insight**: The resources that become shared bottlenecks in Shared VPC are: serverless NEG QPS, ILB forwarding rules, and firewall rules — all scoped to the host project or host VPC.
 
@@ -274,7 +274,7 @@ Adding a second gateway pair per spoke for bandwidth adds ~$110/month per spoke.
 | 5 | VPN throughput | 250K pps / 1–3 Gbps per tunnel | 4 tunnels → 4–12 Gbps | ~10 Gbps (borderline on 4) | Hard per tunnel | Add gateway pairs ($110/mo each) |
 | 6 | BGP route prefixes (hub) | 250/region/VPC (default) | 4 routes (2 spokes × 2) | **125 spokes** | Soft — requestable | Request increase early |
 | 7 | BGP peers (hub) | 128/router × 5 routers = 640 | 4 peers (2 spokes × 2) | **160–320 spokes** | **Hard** | Multi-hub architecture |
-| 8 | Cloud Run IPs (overlap) | 2× per instance, `/8` = 16.7M | ~20 IPs | >8M instances | N/A | Not a constraint |
+| 8 | Cloud Run IPs (overlap) | 2× per instance, `/20` = 4,092 | ~20 IPs | ~2,046 instances | Subnet size | Assign larger Class E block per project |
 | 9 | Cloud Run services | 1,000/project/region | 2 services | 1,000 per project | Hard | Add projects |
 | 10 | CR max instances (VPC egress) | 100–200/revision | 5 | 100–200 per revision | Soft — requestable | Request quota increase |
 
@@ -291,7 +291,7 @@ Adding a second gateway pair per spoke for bandwidth adds ~$110/month per spoke.
    | Routable (ILB) | `/22` (1,022 IPs) | `/22` (1,022 IPs) | Already production-sized; supports ~10K FRs |
    | PNAT (Hybrid NAT) | `/24` (252 IPs) | `/20` (4,092 IPs) | 10× headroom for NAT port allocation |
    | Proxy-only | `/18` (16,384 addrs) | `/18` (16,384 addrs) | Already production-sized; supports ~23M QPS; uses Class E space |
-   | Overlap (Cloud Run) | `/8` | `/8` | Already enormous, no change needed |
+   | Overlap (Cloud Run) | `/20` (4,092 IPs) | `/20` per project | ~2,046 instances per project; assign larger block if needed |
 
 3. **Request serverless NEG QPS increase** for the host project before deploying more than a handful of services behind the ILB.
 

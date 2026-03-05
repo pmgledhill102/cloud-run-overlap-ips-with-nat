@@ -2,13 +2,13 @@
 
 ## Overview
 
-This PoC demonstrates how Cloud Run services deployed on **overlapping IP ranges** (Class E `240.0.0.0/8`) across separate VPCs can communicate with a central hub VM — and vice versa — using HA VPN, Hybrid NAT, and Internal Load Balancers.
+This PoC demonstrates how Cloud Run services deployed on **overlapping IP ranges** (Class E `240.0.0.0/20`) across separate VPCs can communicate with a central hub VM — and vice versa — using HA VPN, Hybrid NAT, and Internal Load Balancers.
 
 ## Key Findings
 
 **Can we use overlapping non-routable IP addresses in a Google Cloud network?**
 
-Yes. GCP allows Class E addresses (`240.0.0.0/4`) as VPC subnet ranges. Multiple VPCs can use the same Class E CIDR (e.g. `240.0.0.0/8`) without conflict, since each VPC is an isolated network. Cloud Run services deployed with Direct VPC egress into these subnets function normally. Cross-VPC communication is possible via Hybrid NAT (which translates the overlapping source IPs to unique routable IPs) combined with HA VPN tunnels.
+Yes. GCP allows Class E addresses (`240.0.0.0/4`) as VPC subnet ranges. Multiple VPCs can use the same Class E CIDR (e.g. `240.0.0.0/20`) without conflict, since each VPC is an isolated network. Cloud Run services deployed with Direct VPC egress into these subnets function normally. Cross-VPC communication is possible via Hybrid NAT (which translates the overlapping source IPs to unique routable IPs) combined with HA VPN tunnels.
 
 **Can we use non-routable IP addresses for the proxy-only subnet?**
 
@@ -39,8 +39,8 @@ The hub VM sends traffic to the spoke's Internal Load Balancer (on a routable /2
 | Subnet | VPC | CIDR | Purpose |
 |---|---|---|---|
 | `compute-hub` | `hub` | `10.0.0.0/28` | VM (Private Google Access enabled) |
-| `overlap-spoke1` | `spoke-1` | `240.0.0.0/8` | Cloud Run egress (overlapping) |
-| `overlap-spoke2` | `spoke-2` | `240.0.0.0/8` | Cloud Run egress (overlapping) |
+| `overlap-spoke1` | `spoke-1` | `240.0.0.0/20` | Cloud Run egress (overlapping) |
+| `overlap-spoke2` | `spoke-2` | `240.0.0.0/20` | Cloud Run egress (overlapping) |
 | `routable-spoke1` | `spoke-1` | `10.1.0.0/22` | ILB forwarding rule |
 | `routable-spoke2` | `spoke-2` | `10.2.0.0/22` | ILB forwarding rule |
 | `proxy-spoke1` | `spoke-1` | `241.0.0.0/18` | ILB proxy-only (REGIONAL_MANAGED_PROXY, overlapping) |
@@ -63,7 +63,7 @@ The hub VM sends traffic to the spoke's Internal Load Balancer (on a routable /2
 | Spoke-1 | `10.1.0.0/22`, `172.16.1.0/24` |
 | Spoke-2 | `10.2.0.0/22`, `172.16.2.0/24` |
 
-Only non-overlapping routes are exchanged. The overlapping `240.0.0.0/8` and `241.0.0.0/18` subnets are **never advertised** — they exist only within each spoke for Cloud Run egress and ILB proxy capacity respectively.
+Only non-overlapping routes are exchanged. The overlapping `240.0.0.0/20` and `241.0.0.0/18` subnets are **never advertised** — they exist only within each spoke for Cloud Run egress and ILB proxy capacity respectively.
 
 ## NAT Configuration
 

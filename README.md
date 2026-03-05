@@ -99,7 +99,7 @@ All scripts default `PROJECT_ID` to `sb-paul-g-vpcsac`. Region is `europe-north2
 - **3 VPCs** — `hub`, `spoke-1`, `spoke-2`
 - **10 subnets** — compute, overlap (x2), routable (x2), proxy-only (x2), private NAT (x2)
 - **1 VM** — `vm-hub` (e2-micro, python3 HTTP server)
-- **2 Cloud Run services + 2 jobs** — Direct VPC Egress on overlapping `240.0.0.0/8`
+- **2 Cloud Run services + 2 jobs** — Direct VPC Egress on overlapping `240.0.0.0/20`
 - **8 HA VPN tunnels**, **6 Cloud Routers**, **2 Hybrid NATs**, **1 Public NAT**, **2 ILBs**
 
 ### VPC Connector

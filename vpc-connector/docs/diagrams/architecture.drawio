@@ -206,7 +206,7 @@
         </mxCell>
 
         <!-- ==================== KEY DIFFERENCES ==================== -->
-        <mxCell id="findings" value="Key Differences from Direct VPC Egress&#xa;&#xa;✓  No overlapping 240.0.0.0/8 subnet — Cloud Run connects through VPC Connector VMs, not directly into VPC&#xa;✓  No Hybrid NAT — connector VM IPs (10.10.x.0/28) are already unique and routable across the hub-spoke topology&#xa;✓  3 subnets per spoke (connector, routable, proxy) vs 4 (overlap, routable, proxy, pnat)" style="text;fontSize=10;fontColor=#3C4043;align=left;verticalAlign=top;fillColor=#E8F5E9;rounded=1;strokeColor=#2E7D32;spacingLeft=10;spacingRight=10;spacingTop=6;spacingBottom=6;whiteSpace=wrap;" vertex="1" parent="1">
+        <mxCell id="findings" value="Key Differences from Direct VPC Egress&#xa;&#xa;✓  No overlapping 240.0.0.0/20 subnet — Cloud Run connects through VPC Connector VMs, not directly into VPC&#xa;✓  No Hybrid NAT — connector VM IPs (10.10.x.0/28) are already unique and routable across the hub-spoke topology&#xa;✓  3 subnets per spoke (connector, routable, proxy) vs 4 (overlap, routable, proxy, pnat)" style="text;fontSize=10;fontColor=#3C4043;align=left;verticalAlign=top;fillColor=#E8F5E9;rounded=1;strokeColor=#2E7D32;spacingLeft=10;spacingRight=10;spacingTop=6;spacingBottom=6;whiteSpace=wrap;" vertex="1" parent="1">
           <mxGeometry x="40" y="810" width="560" height="80" as="geometry"/>
         </mxCell>
 
