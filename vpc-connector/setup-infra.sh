@@ -86,9 +86,9 @@ for spoke_num in 1 2; do
     echo "Subnet '${subnet}' (${cidr}) created in ${spoke}."
   fi
 
-  # Routable /28 (ILB forwarding rule)
+  # Routable /22 (ILB forwarding rule)
   subnet="routable-${spoke}"
-  cidr="10.1${spoke_num}.0.0/28"
+  cidr="10.1${spoke_num}.0.0/22"
   if resource_exists gcloud compute networks subnets describe "${subnet}" \
       --region="${REGION}" --project="${PROJECT_ID}"; then
     echo "Subnet '${subnet}' already exists, skipping."
@@ -103,7 +103,7 @@ for spoke_num in 1 2; do
 
   # Proxy-only subnet (ILB) — overlapping is OK (internal to Envoy, never advertised)
   subnet="proxy-${spoke}"
-  cidr="241.0.0.0/26"
+  cidr="241.0.0.0/18"
   if resource_exists gcloud compute networks subnets describe "${subnet}" \
       --region="${REGION}" --project="${PROJECT_ID}"; then
     echo "Subnet '${subnet}' already exists, skipping."

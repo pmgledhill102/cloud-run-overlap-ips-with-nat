@@ -33,7 +33,7 @@
         </mxCell>
 
         <!-- Routable subnet + ILB -->
-        <mxCell id="sub-routable-s1" value="routable-spoke-1  —  10.1.0.0/28" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-s1">
+        <mxCell id="sub-routable-s1" value="routable-spoke-1  —  10.1.0.0/22" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-s1">
           <mxGeometry x="15" y="200" width="390" height="110" as="geometry"/>
         </mxCell>
         <mxCell id="ilb-s1" value="ilb-spoke-1" style="shape=mxgraph.gcp2.cloud_load_balancing;fillColor=#F8BBD0;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="sub-routable-s1">
@@ -44,7 +44,7 @@
         </mxCell>
 
         <!-- Supporting subnets -->
-        <mxCell id="proxy-s1" value="proxy-spoke-1&#xa;241.0.0.0/26 (Class E)&#xa;ILB Envoy proxies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F9FA;strokeColor=#DADCE0;fontSize=9;fontColor=#5F6368;arcSize=8;" vertex="1" parent="vpc-s1">
+        <mxCell id="proxy-s1" value="proxy-spoke-1&#xa;241.0.0.0/18 (Class E)&#xa;ILB Envoy proxies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F9FA;strokeColor=#DADCE0;fontSize=9;fontColor=#5F6368;arcSize=8;" vertex="1" parent="vpc-s1">
           <mxGeometry x="15" y="325" width="185" height="52" as="geometry"/>
         </mxCell>
         <mxCell id="pnat-s1" value="pnat-spoke-1&#xa;172.16.1.0/24&#xa;Hybrid NAT source IPs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#DADCE0;fontSize=9;fontColor=#5F6368;arcSize=8;" vertex="1" parent="vpc-s1">
@@ -135,7 +135,7 @@
         </mxCell>
 
         <!-- Routable subnet + ILB -->
-        <mxCell id="sub-routable-s2" value="routable-spoke-2  —  10.2.0.0/28" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-s2">
+        <mxCell id="sub-routable-s2" value="routable-spoke-2  —  10.2.0.0/22" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-s2">
           <mxGeometry x="15" y="200" width="390" height="110" as="geometry"/>
         </mxCell>
         <mxCell id="ilb-s2" value="ilb-spoke-2" style="shape=mxgraph.gcp2.cloud_load_balancing;fillColor=#F8BBD0;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="sub-routable-s2">
@@ -146,7 +146,7 @@
         </mxCell>
 
         <!-- Supporting subnets -->
-        <mxCell id="proxy-s2" value="proxy-spoke-2&#xa;241.0.0.0/26 (Class E)&#xa;ILB Envoy proxies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F9FA;strokeColor=#DADCE0;fontSize=9;fontColor=#5F6368;arcSize=8;" vertex="1" parent="vpc-s2">
+        <mxCell id="proxy-s2" value="proxy-spoke-2&#xa;241.0.0.0/18 (Class E)&#xa;ILB Envoy proxies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F9FA;strokeColor=#DADCE0;fontSize=9;fontColor=#5F6368;arcSize=8;" vertex="1" parent="vpc-s2">
           <mxGeometry x="15" y="325" width="185" height="52" as="geometry"/>
         </mxCell>
         <mxCell id="pnat-s2" value="pnat-spoke-2&#xa;172.16.2.0/24&#xa;Hybrid NAT source IPs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#DADCE0;fontSize=9;fontColor=#5F6368;arcSize=8;" vertex="1" parent="vpc-s2">
@@ -190,7 +190,7 @@
         </mxCell>
 
         <!-- ==================== KEY FINDINGS ==================== -->
-        <mxCell id="findings" value="Key Findings&#xa;&#xa;✓  Cloud Run services work on overlapping Class E (240.0.0.0/8) subnets across VPCs&#xa;✓  Hybrid NAT translates overlapping IPs to unique routable IPs for cross-VPC traffic&#xa;✓  ILB proxy-only subnets accept Class E (241.0.0.0/26) — can overlap across spokes" style="text;fontSize=10;fontColor=#3C4043;align=left;verticalAlign=top;fillColor=#FFF8E1;rounded=1;strokeColor=#F9A825;spacingLeft=10;spacingRight=10;spacingTop=6;spacingBottom=6;whiteSpace=wrap;" vertex="1" parent="1">
+        <mxCell id="findings" value="Key Findings&#xa;&#xa;✓  Cloud Run services work on overlapping Class E (240.0.0.0/8) subnets across VPCs&#xa;✓  Hybrid NAT translates overlapping IPs to unique routable IPs for cross-VPC traffic&#xa;✓  ILB proxy-only subnets accept Class E (241.0.0.0/18) — can overlap across spokes" style="text;fontSize=10;fontColor=#3C4043;align=left;verticalAlign=top;fillColor=#FFF8E1;rounded=1;strokeColor=#F9A825;spacingLeft=10;spacingRight=10;spacingTop=6;spacingBottom=6;whiteSpace=wrap;" vertex="1" parent="1">
           <mxGeometry x="40" y="810" width="500" height="80" as="geometry"/>
         </mxCell>
 

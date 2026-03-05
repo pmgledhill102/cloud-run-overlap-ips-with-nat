@@ -172,7 +172,7 @@
         </mxCell>
 
         <!-- ==================== KEY INSIGHT ==================== -->
-        <mxCell id="insight" value="Key Insight: The overlapping 240.0.0.0/8 addresses are never routed across VPCs.&lt;br&gt;Flow A uses Hybrid NAT to translate them to unique 172.16.x.0/24 IPs before crossing the VPN.&lt;br&gt;Flow B uses an ILB on a routable /28 subnet — the Envoy proxy (on 241.0.0.0/26) and serverless NEG handle the last hop to Cloud Run internally." style="text;html=1;fontSize=11;fontColor=#3C4043;align=left;verticalAlign=top;fillColor=#E8F0FE;rounded=1;strokeColor=#4285F4;spacingLeft=10;spacingRight=10;spacingTop=8;spacingBottom=8;whiteSpace=wrap;" vertex="1" parent="1">
+        <mxCell id="insight" value="Key Insight: The overlapping 240.0.0.0/8 addresses are never routed across VPCs.&lt;br&gt;Flow A uses Hybrid NAT to translate them to unique 172.16.x.0/24 IPs before crossing the VPN.&lt;br&gt;Flow B uses an ILB on a routable /22 subnet — the Envoy proxy (on 241.0.0.0/18) and serverless NEG handle the last hop to Cloud Run internally." style="text;html=1;fontSize=11;fontColor=#3C4043;align=left;verticalAlign=top;fillColor=#E8F0FE;rounded=1;strokeColor=#4285F4;spacingLeft=10;spacingRight=10;spacingTop=8;spacingBottom=8;whiteSpace=wrap;" vertex="1" parent="1">
           <mxGeometry x="40" y="620" width="700" height="60" as="geometry"/>
         </mxCell>
 

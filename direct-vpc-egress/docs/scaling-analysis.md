@@ -52,9 +52,9 @@ Each Cloud Run service exposed to the hub needs a path through the ILB. The PoC 
 | Forwarding rules per VPC per region | Project-specific quota (check console) | Soft — requestable |
 | Forwarding rules sharing one IP | 10 | Hard |
 
-**PoC sizing**: Routable subnet `/28` = 12 usable IPs × 10 FRs/IP = **120 forwarding rules max**. With 2 services in the PoC, this is ample.
+**PoC sizing**: Routable subnet `/22` = 1,022 usable IPs × 10 FRs/IP = **~10,220 forwarding rules max**. With 2 services in the PoC, this is ample.
 
-**At scale**: 1,000 services with 1 FR each requires 1,000 forwarding rules and at least 100 IPs (10 FRs per IP). The `/28` is exhausted at ~120 services.
+**At scale**: 1,000 services with 1 FR each requires 1,000 forwarding rules and at least 100 IPs (10 FRs per IP). The `/22` comfortably handles this.
 
 **Key mitigation — URL-map routing**: Instead of 1 FR per service, use a **single ILB per spoke** with host/path-based routing in the URL map to direct traffic to different backend services (each backed by a serverless NEG). This reduces the forwarding rule count from N to **1 per spoke**, regardless of how many services exist.
 
@@ -64,9 +64,9 @@ Single FR → URL map → host: svc-a.spoke-1.internal → backend-svc-a → NEG
                      → ...
 ```
 
-With URL-map routing, even a `/28` routable subnet is sufficient for many spokes. For production, a `/22` (1,022 usable IPs) provides ample headroom.
+With URL-map routing, even a single IP is sufficient. The `/22` (1,022 usable IPs) provides ample headroom for either model.
 
-**Verdict**: Binding at ~50–120 services with 1-FR-per-service model. URL-map routing eliminates this constraint entirely.
+**Verdict**: With the `/22` routable subnet, the 1-FR-per-service model supports ~10,220 forwarding rules — well beyond the target. URL-map routing eliminates forwarding rule count as a concern entirely.
 
 ### 2.3 Hub→Spoke: Serverless NEG QPS
 
@@ -108,15 +108,16 @@ Proxies auto-scale based on a 10-minute measurement window. Pre-warming availabl
 
 | Subnet size | Addresses | QPS capacity (@ 1,400 RPS/proxy) |
 |---|---|---|
-| `/26` (PoC) | 64 | ~89,600 |
-| `/23` (recommended) | 512 | ~716,800 |
+| `/26` | 64 | ~89,600 |
+| `/23` | 512 | ~716,800 |
+| `/18` (PoC) | 16,384 | ~22,937,600 |
 | `/20` | 4,096 | ~5,734,400 |
 
 **At scale**: 1,000 services × 500 QPS = 500K QPS → needs ~358 proxies → needs a `/23` (512 addresses).
 
-The proxy-only subnet uses Class E space (`241.0.0.0/x`) so expanding it consumes zero routable address space.
+The proxy-only subnet uses Class E space (`241.0.0.0/x`) so expanding it consumes zero routable address space. The PoC's `/18` (16,384 addresses) provides massive headroom for production.
 
-**Verdict**: Expand from `/26` to `/23` for production. Straightforward change with no address scarcity concern.
+**Verdict**: The `/18` proxy-only subnet is already sized for production. Straightforward to adjust with no address scarcity concern.
 
 ### 2.5 VPN Throughput
 
@@ -267,9 +268,9 @@ Adding a second gateway pair per spoke for bandwidth adds ~$110/month per spoke.
 | # | Dimension | GCP Limit | PoC Value | Hits Limit At | Hard/Soft | Mitigation |
 |---|---|---|---|---|---|---|
 | 1 | PNAT port capacity | `usable_IPs × 64,512 / (min_ports × 2)` | `/24` → ~127K endpoints | Well beyond target | N/A | Expand to `/20` for headroom |
-| 2 | ILB forwarding rules | Project-specific quota; 10/IP hard | `/28` = 12 IPs → 120 FRs | ~50–120 services (1-FR model) | Soft (quota) / Hard (10/IP) | URL-map routing → 1 FR/spoke |
+| 2 | ILB forwarding rules | Project-specific quota; 10/IP hard | `/22` = 1,022 IPs → ~10,220 FRs | ~10K services (1-FR model) | Soft (quota) / Hard (10/IP) | URL-map routing → 1 FR/spoke |
 | 3 | Serverless NEG QPS | 5,000/project/region | 2 services, minimal QPS | ~100 services × 50 QPS | Soft — requestable | Request increase; consider PSC |
-| 4 | Proxy-only subnet | Auto-scaled; 1,400 RPS/proxy | `/26` = 64 proxies → 90K QPS | ~500K QPS needs `/23` | Subnet size | Expand to `/23` (Class E, free) |
+| 4 | Proxy-only subnet | Auto-scaled; 1,400 RPS/proxy | `/18` = 16K proxies → ~23M QPS | Well beyond target | Subnet size | Already production-sized (Class E, free) |
 | 5 | VPN throughput | 250K pps / 1–3 Gbps per tunnel | 4 tunnels → 4–12 Gbps | ~10 Gbps (borderline on 4) | Hard per tunnel | Add gateway pairs ($110/mo each) |
 | 6 | BGP route prefixes (hub) | 250/region/VPC (default) | 4 routes (2 spokes × 2) | **125 spokes** | Soft — requestable | Request increase early |
 | 7 | BGP peers (hub) | 128/router × 5 routers = 640 | 4 peers (2 spokes × 2) | **160–320 spokes** | **Hard** | Multi-hub architecture |
@@ -287,9 +288,9 @@ Adding a second gateway pair per spoke for bandwidth adds ~$110/month per spoke.
 
    | Subnet | PoC | Production | Rationale |
    |---|---|---|---|
-   | Routable (ILB) | `/28` (12 IPs) | `/22` (1,022 IPs) | Headroom for multiple FRs if needed |
+   | Routable (ILB) | `/22` (1,022 IPs) | `/22` (1,022 IPs) | Already production-sized; supports ~10K FRs |
    | PNAT (Hybrid NAT) | `/24` (252 IPs) | `/20` (4,092 IPs) | 10× headroom for NAT port allocation |
-   | Proxy-only | `/26` (64 addrs) | `/23` (512 addrs) | Supports ~700K QPS; uses Class E space |
+   | Proxy-only | `/18` (16,384 addrs) | `/18` (16,384 addrs) | Already production-sized; supports ~23M QPS; uses Class E space |
    | Overlap (Cloud Run) | `/8` | `/8` | Already enormous, no change needed |
 
 3. **Request serverless NEG QPS increase** for the host project before deploying more than a handful of services behind the ILB.

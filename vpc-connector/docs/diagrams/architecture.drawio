@@ -47,7 +47,7 @@
         </mxCell>
 
         <!-- Routable subnet + ILB -->
-        <mxCell id="sub-routable-sc1" value="routable-spoke-c1  —  10.11.0.0/28" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-sc1">
+        <mxCell id="sub-routable-sc1" value="routable-spoke-c1  —  10.11.0.0/22" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-sc1">
           <mxGeometry x="15" y="200" width="390" height="110" as="geometry"/>
         </mxCell>
         <mxCell id="ilb-sc1" value="ilb-spoke-c1" style="shape=mxgraph.gcp2.cloud_load_balancing;fillColor=#F8BBD0;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="sub-routable-sc1">
@@ -58,7 +58,7 @@
         </mxCell>
 
         <!-- Proxy-only subnet -->
-        <mxCell id="proxy-sc1" value="proxy-spoke-c1&#xa;241.0.0.0/26 (Class E)&#xa;ILB Envoy proxies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F9FA;strokeColor=#DADCE0;fontSize=9;fontColor=#5F6368;arcSize=8;" vertex="1" parent="vpc-sc1">
+        <mxCell id="proxy-sc1" value="proxy-spoke-c1&#xa;241.0.0.0/18 (Class E)&#xa;ILB Envoy proxies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F9FA;strokeColor=#DADCE0;fontSize=9;fontColor=#5F6368;arcSize=8;" vertex="1" parent="vpc-sc1">
           <mxGeometry x="110" y="330" width="185" height="52" as="geometry"/>
         </mxCell>
 
@@ -157,7 +157,7 @@
         </mxCell>
 
         <!-- Routable subnet + ILB -->
-        <mxCell id="sub-routable-sc2" value="routable-spoke-c2  —  10.12.0.0/28" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-sc2">
+        <mxCell id="sub-routable-sc2" value="routable-spoke-c2  —  10.12.0.0/22" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DADCE0;strokeWidth=1;dashed=1;dashPattern=5 5;verticalAlign=top;fontSize=10;fontColor=#5F6368;fontStyle=1;arcSize=6;container=1;collapsible=0;spacingTop=2;" vertex="1" parent="vpc-sc2">
           <mxGeometry x="15" y="200" width="390" height="110" as="geometry"/>
         </mxCell>
         <mxCell id="ilb-sc2" value="ilb-spoke-c2" style="shape=mxgraph.gcp2.cloud_load_balancing;fillColor=#F8BBD0;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;fontColor=#3C4043;fontStyle=1;" vertex="1" parent="sub-routable-sc2">
@@ -168,7 +168,7 @@
         </mxCell>
 
         <!-- Proxy-only subnet -->
-        <mxCell id="proxy-sc2" value="proxy-spoke-c2&#xa;241.0.0.0/26 (Class E)&#xa;ILB Envoy proxies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F9FA;strokeColor=#DADCE0;fontSize=9;fontColor=#5F6368;arcSize=8;" vertex="1" parent="vpc-sc2">
+        <mxCell id="proxy-sc2" value="proxy-spoke-c2&#xa;241.0.0.0/18 (Class E)&#xa;ILB Envoy proxies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F9FA;strokeColor=#DADCE0;fontSize=9;fontColor=#5F6368;arcSize=8;" vertex="1" parent="vpc-sc2">
           <mxGeometry x="110" y="330" width="185" height="52" as="geometry"/>
         </mxCell>
 

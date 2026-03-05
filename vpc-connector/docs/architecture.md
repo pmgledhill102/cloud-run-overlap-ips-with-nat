@@ -44,11 +44,11 @@ This approach uses **VPC Serverless Access Connectors** to connect Cloud Run ser
         │    VPC Connector VMs     │  │    VPC Connector VMs      │
         │                          │  │                           │
         │  routable-spoke-c1       │  │  routable-spoke-c2        │
-        │  (10.11.0.0/28)          │  │  (10.12.0.0/28)           │
+        │  (10.11.0.0/22)          │  │  (10.12.0.0/22)           │
         │    ILB (HTTPS :443)      │  │    ILB (HTTPS :443)       │
         │                          │  │                           │
         │  proxy-spoke-c1          │  │  proxy-spoke-c2           │
-        │  (241.0.0.0/26)          │  │  (241.0.0.0/26)           │
+        │  (241.0.0.0/18)          │  │  (241.0.0.0/18)           │
         │                          │  │                           │
         │  cr-spoke-c1 (service)   │  │  cr-spoke-c2 (service)    │
         │  job-spoke-c1 (job)      │  │  job-spoke-c2 (job)       │
@@ -102,10 +102,10 @@ Serverless NEG → Cloud Run Service
 | `compute-hub` | `hub` | `10.0.0.0/28` | VM |
 | `connector-spoke-c1` | `spoke-c1` | `10.10.1.0/28` | VPC Connector (unique, routable) |
 | `connector-spoke-c2` | `spoke-c2` | `10.10.2.0/28` | VPC Connector (unique, routable) |
-| `routable-spoke-c1` | `spoke-c1` | `10.11.0.0/28` | ILB forwarding rule |
-| `routable-spoke-c2` | `spoke-c2` | `10.12.0.0/28` | ILB forwarding rule |
-| `proxy-spoke-c1` | `spoke-c1` | `241.0.0.0/26` | ILB proxy-only (overlapping OK) |
-| `proxy-spoke-c2` | `spoke-c2` | `241.0.0.0/26` | ILB proxy-only (overlapping OK) |
+| `routable-spoke-c1` | `spoke-c1` | `10.11.0.0/22` | ILB forwarding rule |
+| `routable-spoke-c2` | `spoke-c2` | `10.12.0.0/22` | ILB forwarding rule |
+| `proxy-spoke-c1` | `spoke-c1` | `241.0.0.0/18` | ILB proxy-only (overlapping OK) |
+| `proxy-spoke-c2` | `spoke-c2` | `241.0.0.0/18` | ILB proxy-only (overlapping OK) |
 
 7 subnets total vs 10 for Direct VPC Egress (no overlap or pnat subnets).
 
@@ -114,8 +114,8 @@ Serverless NEG → Cloud Run Service
 | Router | VPC | ASN | Advertises |
 |---|---|---|---|
 | `vpn-router-hub` | `hub` | 65000 | `10.0.0.0/28` |
-| `vpn-router-spoke-c1` | `spoke-c1` | 65003 | `10.10.1.0/28`, `10.11.0.0/28` |
-| `vpn-router-spoke-c2` | `spoke-c2` | 65004 | `10.10.2.0/28`, `10.12.0.0/28` |
+| `vpn-router-spoke-c1` | `spoke-c1` | 65003 | `10.10.1.0/28`, `10.11.0.0/22` |
+| `vpn-router-spoke-c2` | `spoke-c2` | 65004 | `10.10.2.0/28`, `10.12.0.0/22` |
 
 - 2 BGP routes per spoke (vs 2 for Direct VPC Egress — same density)
 - 4 tunnels per spoke (2 interfaces × 2 directions), 8 total

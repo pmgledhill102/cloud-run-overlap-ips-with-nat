@@ -246,7 +246,7 @@ echo "vpn-router-hub route advertisements configured."
 for spoke_num in 1 2; do
   spoke="spoke-c${spoke_num}"
   router="vpn-router-${spoke}"
-  ranges="10.10.${spoke_num}.0/28,10.1${spoke_num}.0.0/28"
+  ranges="10.10.${spoke_num}.0/28,10.1${spoke_num}.0.0/22"
   echo "Setting ${router} to advertise: ${ranges}"
   gcloud compute routers update "${router}" \
     --region="${REGION}" \
