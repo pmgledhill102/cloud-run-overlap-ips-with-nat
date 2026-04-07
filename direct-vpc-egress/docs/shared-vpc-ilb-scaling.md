@@ -63,17 +63,19 @@ Host Project (Shared VPC)
 
 **Per VPC network** (the Shared VPC — binding constraints):
 
-| Quota | Default | Need | Headroom | Requestable? |
+| Limit / Quota | Default | Need | Headroom | Adjustable? |
 |---|---|---|---|---|
-| **Regional internal managed FRs per region per network** | **75** | **500** | **-425 (6.7× over)** | Yes |
-| Internal managed FRs per VPC (all regions) | 500 | 500 | 0 | Yes |
-| Internal managed FRs per peering group | 500 | 500 | 0 | Yes |
+| **Regional internal managed FRs per region per network** | **75** | **500** | **-425 (6.7× over)** | **No — system limit** |
+| Internal managed FRs per VPC (all regions) | 500 | 500 | 0 | No — system limit |
+| Internal managed FRs per peering group | 500 | 500 | 0 | No — system limit |
 | Firewall rules | 1,000 | Depends on design | Likely OK | Yes |
 | Subnets per network | 300 | ~4 | OK | Yes |
 
+> **Note**: The forwarding rules per region per network metric (`compute.googleapis.com/regional_internal_managed_forwarding_rules_per_region_per_vpc_network`) is classified as a **system limit** in the GCP console (Type: "System limit", Adjustable: "No"). It is **not** a requestable quota — this is a hard ceiling that cannot be raised via support or quota increase requests.
+
 ### Verdict
 
-**Blocked by default quotas.** The 75 forwarding rules per region per network limit requires a ~7× quota increase. Even the all-regions aggregate of 500 is exactly at the limit. Workable if Google grants the increase, but risky — each new project adds a forwarding rule to the shared pool.
+**Architecturally blocked.** The 75 forwarding rules per region per network is a hard system limit, not an adjustable quota. Option A cannot support more than 75 projects with their own ILB on a single Shared VPC in a single region. This is not a matter of requesting an increase — it is a platform constraint.
 
 ---
 
@@ -179,14 +181,13 @@ Forwarding Rule 2 (platform-ilb-02, 10.x.0.2:443)
 | Quota | Default | Need | Status |
 |---|---|---|---|
 | URL maps (global) | 10 | 13 | **Slightly over — request increase** |
-| Regional internal managed FRs per region per network | 75 | 13 | **OK — 83% headroom** |
-| Internal managed FRs per VPC (all regions) | 500 | 13 | OK |
 
-**Per VPC network**:
+**Per VPC network** (system limits — not adjustable):
 
-| Quota | Default | Need | Status |
+| Limit | Value | Need | Status |
 |---|---|---|---|
-| **Regional internal managed FRs per region per network** | **75** | **13** | **OK** |
+| **Regional internal managed FRs per region per network** | **75** | **13** | **OK — 83% headroom** |
+| Internal managed FRs per VPC (all regions) | 500 | 13 | OK |
 | Firewall rules | 1,000 | Depends | Likely OK |
 
 ### Verdict
@@ -199,11 +200,11 @@ Forwarding Rule 2 (platform-ilb-02, 10.x.0.2:443)
 
 | Dimension | Option A (Decentralised) | Option B (Centralised) |
 |---|---|---|
-| **Forwarding rules on VPC** | **500** (6.7× over default 75) | **13** (within default) |
+| **Forwarding rules on VPC** | **500** (6.7× over hard limit of 75) | **13** (within limit) |
 | Backend services per project | 50 (at default ceiling) | 50 (at default ceiling) |
 | Serverless NEG QPS | Per service project (distributed) | Per service project (distributed) |
 | URL maps | 500 (1/project, within default) | 13 (platform project, minor increase) |
-| **Quota increases needed** | **Major** (forwarding rules) | **Minor** (URL maps: 10→13) |
+| **Limit/quota issues** | **Blocked — hard system limit** | **Minor** (URL maps: 10→13, adjustable) |
 | Ownership model | Self-service per project | Platform team manages ILB frontend |
 | Onboarding a new project | Project creates its own ILB stack | Platform team adds URL map rules + grants IAM |
 | Blast radius of misconfiguration | Contained to one project's ILB | URL map change can affect routing for many projects |
@@ -255,16 +256,17 @@ to the platform project's Load Balancer Admin identity. This can be scoped to:
 
 ## Recommendation
 
-**Option B (Centralised) is strongly preferred** at 500 projects:
+**Option B (Centralised) is the only viable option** at 500 projects:
 
-1. **Quota-safe**: 13 forwarding rules vs 500 — no major quota increase needed.
-2. **Hub simplicity**: 13 VIPs to advertise via BGP, not 500.
-3. **Proxy-only efficiency**: 13 ILBs share the proxy pool more efficiently than 500.
-4. **Operational trade-off**: Requires a platform team to manage the ILB frontend, but this is typical in enterprise Shared VPC deployments where networking is already centralised.
+1. **Option A is blocked**: The 75 forwarding rules per region per network is a hard system limit (not adjustable). Option A is architecturally impossible beyond 75 projects per spoke.
+2. **Option B fits**: 13 forwarding rules is well within the 75 limit, leaving room for growth.
+3. **Hub simplicity**: 13 VIPs to advertise via BGP, not 500.
+4. **Proxy-only efficiency**: 13 ILBs share the proxy pool more efficiently than 500.
+5. **Operational trade-off**: Requires a platform team to manage the ILB frontend, but this is typical in enterprise Shared VPC deployments where networking is already centralised.
 
 The main risk is the **backend services per project** quota (50 default, need exactly 50). Request an increase to at least 75 per service project for growth headroom.
 
-For projects needing full independence (e.g., separate SLAs, independent certificate management), a **hybrid model** works: most projects route through the shared ILBs (Option B), while a few high-priority projects get their own dedicated ILB (Option A) — consuming forwarding rules from the shared 75 pool.
+For projects needing full independence (e.g., separate SLAs, independent certificate management), a **hybrid model** works: most projects route through the shared ILBs (Option B), while a few high-priority projects get their own dedicated ILB (Option A) — consuming forwarding rules from the hard limit of 75 per spoke.
 
 ## References
 
