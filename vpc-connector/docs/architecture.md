@@ -141,6 +141,8 @@ Same architecture as Direct VPC Egress:
 - Backend service with INTERNAL_MANAGED scheme
 - URL map → target HTTPS proxy → forwarding rule on port 443
 
+> **Scaling note**: GCP enforces a hard system limit of **75 regional internal managed forwarding rules per region per VPC network** (not adjustable). The PoC uses 2 forwarding rules (1 per spoke), but at production scale URL-map routing (1 FR per spoke with host/path rules) is required. See [scaling-analysis.md](../direct-vpc-egress/docs/scaling-analysis.md) §2.2.
+
 ## Firewall Rules
 
 | Rule | VPC | Allows | Source Ranges |

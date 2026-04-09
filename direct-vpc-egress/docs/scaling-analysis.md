@@ -10,7 +10,7 @@ This document analyses what happens when the PoC's hub-spoke architecture is sca
 
 - **BGP route prefixes on the hub** are the first soft limit to hit. At 2 routes per spoke, the default quota of 250 is exhausted at **125 spokes**. Requestable, but the hard ceiling is the 128 BGP peers per Cloud Router × 5 Cloud Routers = **640 peers**, capping at ~160–320 spokes depending on tunnels per spoke.
 - **Serverless NEG QPS** (5,000/project/region) is the binding constraint for hub→spoke traffic volume. In Shared VPC, all ILB traffic counts against the host project's single pool.
-- **ILB forwarding rules** become a bottleneck at ~50–100 services per spoke under a 1-FR-per-service model, but URL-map routing eliminates this entirely.
+- **ILB forwarding rules** are hard-limited to **75 per region per VPC network** (system limit, not adjustable). This blocks the 1-FR-per-service model beyond 75 services per spoke. URL-map routing (1 FR per spoke) is required at any meaningful scale.
 - **PNAT capacity**, **VPN throughput**, **proxy-only subnet**, and **Cloud Run IP space** are all comfortable at the target scale with modest subnet expansions.
 
 ## 2. Scaling Dimensions
@@ -49,12 +49,16 @@ Each Cloud Run service exposed to the hub needs a path through the ILB. The PoC 
 
 | Limit | Value | Type |
 |---|---|---|
-| Forwarding rules per VPC per region | Project-specific quota (check console) | Soft — requestable |
+| Regional internal managed FRs per region per VPC network | **75** | **Hard — system limit, not adjustable** |
 | Forwarding rules sharing one IP | 10 | Hard |
 
-**PoC sizing**: Routable subnet `/22` = 1,022 usable IPs × 10 FRs/IP = **~10,220 forwarding rules max**. With 2 services in the PoC, this is ample.
+> **Tested**: We confirmed the 75 limit empirically by creating forwarding rules across 4 service projects on a single Shared VPC (`frl-shared`). The limit is enforced **per VPC network**, not per project — all service projects' forwarding rules count against the same 75 pool. See `forwarding-rule-limits/` for test scripts.
+>
+> **Documentation discrepancy**: The [GCP Load Balancing quotas page](https://cloud.google.com/load-balancing/docs/quotas#forwarding_rules) incorrectly classifies this as a "Quota" (implying it's adjustable). The GCP Console correctly shows it as **Type: "System limit", Adjustable: "No"** (`compute.googleapis.com/regional_internal_managed_forwarding_rules_per_region_per_vpc_network`).
 
-**At scale**: 1,000 services with 1 FR each requires 1,000 forwarding rules and at least 100 IPs (10 FRs per IP). The `/22` comfortably handles this.
+**PoC sizing**: Routable subnet `/22` = 1,022 usable IPs × 10 FRs/IP = **~10,220 IPs available**, but the forwarding rule count is capped at **75 per region per VPC network**. With 2 services in the PoC, this is ample.
+
+**At scale**: 1,000 services with 1 FR each would require 1,000 forwarding rules — **13× over the hard limit of 75**. This is not a matter of requesting a quota increase; it is a platform constraint.
 
 **Key mitigation — URL-map routing**: Instead of 1 FR per service, use a **single ILB per spoke** with host/path-based routing in the URL map to direct traffic to different backend services (each backed by a serverless NEG). This reduces the forwarding rule count from N to **1 per spoke**, regardless of how many services exist.
 
@@ -64,9 +68,9 @@ Single FR → URL map → host: svc-a.spoke-1.internal → backend-svc-a → NEG
                      → ...
 ```
 
-With URL-map routing, even a single IP is sufficient. The `/22` (1,022 usable IPs) provides ample headroom for either model.
+With URL-map routing, even a single IP is sufficient. The `/22` (1,022 usable IPs) provides ample headroom.
 
-**Verdict**: With the `/22` routable subnet, the 1-FR-per-service model supports ~10,220 forwarding rules — well beyond the target. URL-map routing eliminates forwarding rule count as a concern entirely.
+**Verdict**: The 75 forwarding rules per region per VPC network is a **hard system limit**. URL-map routing is not just an optimisation — it is **required** at any meaningful scale to stay within the 75 FR ceiling.
 
 ### 2.3 Hub→Spoke: Serverless NEG QPS
 
@@ -224,7 +228,7 @@ In a Shared VPC model, some quotas are scoped to the **host project** (shared po
 | Cloud Run services | Per service project per region | 1,000/project. 50 projects = 50,000 possible |
 | Cloud Run instances | Per service project | Independent compute quota per project |
 | Cloud Run Direct VPC egress instances | Per service project (requestable) | 100–200 default per revision per project |
-| ILB forwarding rules | Per VPC per region (host project) | Shared pool across all projects in the spoke |
+| ILB forwarding rules | Per VPC per region — **75 hard limit** | Shared pool across all projects in the spoke (confirmed via Shared VPC test) |
 | Serverless NEG QPS | Per host project per region | All LB traffic counts against host's 5K limit |
 | VPN tunnels/gateways | Per host project | Single pool |
 | Cloud Routers | Per VPC per region (max 5) | Hard limit, shared across all traffic |
@@ -232,7 +236,7 @@ In a Shared VPC model, some quotas are scoped to the **host project** (shared po
 | Firewall rules | Per host project | 1,000 default (requestable). Shared |
 | Subnet IP addresses | Per VPC | Shared. The `/20` overlap subnet is consumed by all projects' Cloud Run instances |
 
-**Key insight**: The resources that become shared bottlenecks in Shared VPC are: serverless NEG QPS, ILB forwarding rules, and firewall rules — all scoped to the host project or host VPC.
+**Key insight**: The resources that become shared bottlenecks in Shared VPC are: serverless NEG QPS, ILB forwarding rules (hard-capped at 75 per region per VPC network — not adjustable), and firewall rules — all scoped to the host project or host VPC.
 
 ### 2.9 Cost Scaling
 
@@ -268,7 +272,7 @@ Adding a second gateway pair per spoke for bandwidth adds ~$110/month per spoke.
 | # | Dimension | GCP Limit | PoC Value | Hits Limit At | Hard/Soft | Mitigation |
 |---|---|---|---|---|---|---|
 | 1 | PNAT port capacity | `usable_IPs × 64,512 / (min_ports × 2)` | `/24` → ~127K endpoints | Well beyond target | N/A | Expand to `/20` for headroom |
-| 2 | ILB forwarding rules | Project-specific quota; 10/IP hard | `/22` = 1,022 IPs → ~10,220 FRs | ~10K services (1-FR model) | Soft (quota) / Hard (10/IP) | URL-map routing → 1 FR/spoke |
+| 2 | ILB forwarding rules | **75/region/VPC network** (system limit); 10/IP hard | `/22` = 1,022 IPs, but **75 FR hard cap** | **75 services** (1-FR model) | **Hard — not adjustable** | URL-map routing → 1 FR/spoke (**required**) |
 | 3 | Serverless NEG QPS | 5,000/project/region | 2 services, minimal QPS | ~100 services × 50 QPS | Soft — requestable | Request increase; consider PSC |
 | 4 | Proxy-only subnet | Auto-scaled; 1,400 RPS/proxy | `/18` = 16K proxies → ~23M QPS | Well beyond target | Subnet size | Already production-sized (Class E, free) |
 | 5 | VPN throughput | 250K pps / 1–3 Gbps per tunnel | 4 tunnels → 4–12 Gbps | ~10 Gbps (borderline on 4) | Hard per tunnel | Add gateway pairs ($110/mo each) |
@@ -282,7 +286,7 @@ Adding a second gateway pair per spoke for bandwidth adds ~$110/month per spoke.
 
 ### Immediate (before production)
 
-1. **URL-map routing**: Deploy a single ILB per spoke with host/path-based routing to multiple backend services. This eliminates the forwarding rule bottleneck entirely and simplifies the hub's route table (one ILB IP per spoke instead of many).
+1. **URL-map routing** (mandatory): Deploy a single ILB per spoke with host/path-based routing to multiple backend services. The 75 forwarding rules per region per VPC network hard limit makes this **required** — not optional — at any meaningful scale. This also simplifies the hub's route table (one ILB IP per spoke instead of many).
 
 2. **Expand subnets**: Size subnets for production from the start.
 

@@ -62,6 +62,12 @@ Cost difference is marginal (~$27/month for connector VMs). VPN tunnels dominate
 - **Direct VPC Egress**: Recommended for new deployments (GA, no VM overhead)
 - **VPC Connector**: Still fully supported but considered legacy for new projects
 
+## Scaling Note — Forwarding Rule Hard Limit
+
+Both approaches use Internal Application Load Balancers with forwarding rules. GCP enforces a **hard system limit of 75 regional internal managed forwarding rules per region per VPC network** (not adjustable, not a quota increase — confirmed empirically and in the GCP Console). In a Shared VPC model, all service projects' forwarding rules count against the same 75 pool.
+
+This means a 1-forwarding-rule-per-service model is capped at 75 services per spoke. **URL-map routing** (1 FR per spoke, with host/path rules routing to many backends) is required at any meaningful scale. See [scaling-analysis.md](../direct-vpc-egress/docs/scaling-analysis.md) and [shared-vpc-ilb-scaling.md](../direct-vpc-egress/docs/shared-vpc-ilb-scaling.md) for detailed analysis.
+
 ## When to Use Which
 
 ### Choose Direct VPC Egress when:
