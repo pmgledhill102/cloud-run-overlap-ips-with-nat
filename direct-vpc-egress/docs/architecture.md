@@ -90,6 +90,8 @@ Each spoke exposes its Cloud Run service via an Internal Load Balancer with TLS 
 
 The ILB terminates TLS at the Envoy proxy; the connection to Cloud Run via the serverless NEG is handled internally by GCP. The ILB's IP is on the routable `/22` subnet, which is advertised via BGP to the hub. The proxy-only subnet provides Envoy proxy capacity.
 
+> **Scaling note**: GCP enforces a hard system limit of **75 regional internal managed forwarding rules per region per VPC network** (not adjustable). The PoC uses 2 forwarding rules (1 per spoke), but at production scale URL-map routing (1 FR per spoke with host/path rules) is required. See [scaling-analysis.md](scaling-analysis.md) §2.2 and [shared-vpc-ilb-scaling.md](shared-vpc-ilb-scaling.md).
+
 ## Compute & Cloud Run
 
 | Resource | VPC / Subnet | Purpose |

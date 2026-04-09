@@ -72,10 +72,14 @@ Host Project (Shared VPC)
 | Subnets per network | 300 | ~4 | OK | Yes |
 
 > **Note**: The forwarding rules per region per network metric (`compute.googleapis.com/regional_internal_managed_forwarding_rules_per_region_per_vpc_network`) is classified as a **system limit** in the GCP console (Type: "System limit", Adjustable: "No"). It is **not** a requestable quota — this is a hard ceiling that cannot be raised via support or quota increase requests.
+>
+> **Documentation discrepancy**: The [GCP Load Balancing quotas page](https://cloud.google.com/load-balancing/docs/quotas#forwarding_rules) incorrectly classifies this as a "Quota" (implying it's adjustable). The GCP Console correctly shows it as a system limit.
+>
+> **Empirically confirmed**: We tested this by creating forwarding rules across 4 service projects (`sb-paul-g-load-{1..4}`) on a single Shared VPC host project. The limit is enforced **per VPC network**, not per project — all service projects' forwarding rules count against the same pool of 75. Creation fails at exactly 75 with error: `Quota 'REGIONAL_INTERNAL_MANAGED_FORWARDING_RULES_PER_REGION_PER_NETWORK' exceeded. Limit: 75.0`. Test scripts are in `forwarding-rule-limits/`.
 
 ### Verdict
 
-**Architecturally blocked.** The 75 forwarding rules per region per network is a hard system limit, not an adjustable quota. Option A cannot support more than 75 projects with their own ILB on a single Shared VPC in a single region. This is not a matter of requesting an increase — it is a platform constraint.
+**Architecturally blocked.** The 75 forwarding rules per region per network is a hard system limit, not an adjustable quota. Option A cannot support more than 75 projects with their own ILB on a single Shared VPC in a single region. This is not a matter of requesting an increase — it is a platform constraint. This was confirmed empirically — see note above.
 
 ---
 
