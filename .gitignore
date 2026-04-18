@@ -5,3 +5,9 @@
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+
+# Beads / Dolt files (added by bd init)
+.beads-credential-key
+
+# Beads exports — source of truth is Dolt + refs/dolt/data on origin.
+.beads/issues.jsonl

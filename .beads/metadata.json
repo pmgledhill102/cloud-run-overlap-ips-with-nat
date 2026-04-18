@@ -1,5 +1,7 @@
 {
   "database": "dolt",
   "backend": "dolt",
-  "dolt_database": "cloud-run-overlap-ips-with-nat"
+  "dolt_mode": "embedded",
+  "dolt_database": "cloud_run_overlap_ips_with_nat",
+  "project_id": "582fb4a3-bbaa-4f8b-89ef-5eb4bb4f2b5d"
 }
